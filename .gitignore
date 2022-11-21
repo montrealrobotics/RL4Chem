@@ -1,0 +1,16 @@
+__pycache__/
+
+# logging
+checkpoint/
+
+#saved binaries
+checkpoints/
+
+#mujoco log files
+MUJOCO_LOG.TXT
+
+#saved binaries
+saved/
+
+#virtual env
+env_rl4chem/
