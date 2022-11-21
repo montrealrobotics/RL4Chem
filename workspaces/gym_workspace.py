@@ -32,7 +32,9 @@ def make_agent(envs, cfg, device):
     if cfg.agent == 'ppo':
         from agents.ppo import PpoAgent
         agent = PpoAgent(envs, cfg, device)
-                            
+    elif cfg.agent == 'ppo_lstm':
+        from agents.ppo_lstm import PpoLstmAgent
+        agent = PpoLstmAgent(envs, cfg, device)                   
     else:
         raise NotImplementedError
 
@@ -68,18 +70,7 @@ class PpoGymWorkspace:
 
     def train(self):
         cfg = self.cfg
-        device = self.device 
-
-        obs = torch.zeros((cfg.num_steps, cfg.num_envs) + self.train_envs.single_observation_space.shape).to(device)
-        actions = torch.zeros((cfg.num_steps, cfg.num_envs) + self.train_envs.single_action_space.shape).to(device)
-        logprobs = torch.zeros((cfg.num_steps, cfg.num_envs)).to(device)
-        rewards = torch.zeros((cfg.num_steps, cfg.num_envs)).to(device)
-        dones = torch.zeros((cfg.num_steps, cfg.num_envs)).to(device)
-        values = torch.zeros((cfg.num_steps, cfg.num_envs)).to(device)
-        
         start_time = time.time()
-        next_obs = torch.Tensor(self.train_envs.reset()).to(device)
-        next_done = torch.zeros(cfg.num_envs).to(device)
         num_updates = cfg.num_train_steps // cfg.batch_size
 
         for update in range(1, num_updates + 1):
@@ -88,35 +79,11 @@ class PpoGymWorkspace:
                 lrnow = frac * cfg.lr
                 self.agent.optimizer.param_groups[0]["lr"] = lrnow
 
-            for step in range(0, cfg.num_steps):
-                self._train_step += 1 * cfg.num_envs
-                obs[step] = next_obs
-                dones[step] = next_done
+            self._train_step, self._train_episode =  self.agent.collect_data(self.train_envs, self._train_step, self._train_episode, start_time)
 
-                with torch.no_grad():
-                    action, logprob, _, value = self.agent.get_action_and_value(next_obs)
-                    values[step] = value.flatten()
-                actions[step] = action
-                logprobs[step] = logprob
-
-                next_obs, reward, done, info = self.train_envs.step(action.cpu().numpy())
-                rewards[step] = torch.tensor(reward).to(device).view(-1)
-                next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
-
-                for item in info:
-                    if "episode" in item.keys():
-                        self._train_episode += 1
-                        print("total episodes: {}, total numsteps: {}, return: {}, cummulative sps: {}".format(self._train_episode, self._train_step, item["episode"]["r"], int(self._train_step / (time.time() - start_time))))
-                        if self.cfg.wandb_log:
-                            episode_metrics = dict()
-                            episode_metrics['episodic_length'] = item["episode"]["l"]
-                            episode_metrics['episodic_return'] = item["episode"]["r"]
-                            wandb.log(episode_metrics, step=self._train_step)
-                        break
-            
             train_metrics = dict()
             train_metrics.update(
-                self.agent.train(obs, actions, logprobs, rewards, values, next_obs, dones, next_done) 
+                self.agent.train(self.train_envs) 
             )
             train_metrics['SPS'] = int(self._train_step / (time.time() - start_time))
 

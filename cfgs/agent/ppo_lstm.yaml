@@ -1,6 +1,6 @@
 #common
 agent_family: 'ppo'
-agent: 'ppo'
+agent: 'ppo_lstm'
 device: 'cuda'
 torch_deterministic: True
 seed: 1
@@ -12,9 +12,9 @@ pomdp: False
 
 #data collection
 num_train_steps: 100000
-num_envs: 4
-num_steps: 128
-num_minibatches: 4
+num_envs: 128
+num_steps: 4
+num_minibatches: 32
 update_epochs: 4
 batch_size:
 minibatch_size:

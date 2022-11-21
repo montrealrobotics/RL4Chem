@@ -8,7 +8,7 @@ run_name: ${seed}
 #wandb
 wandb_log: False
 wandb_entity:
-wandb_project_name: ${agent}-${id}
+wandb_project_name: ${agent_family}-${id}
 wandb_run_name: ${run_name}$
 
 hydra:

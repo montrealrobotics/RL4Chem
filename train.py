@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 
 @hydra.main(config_path='cfgs', config_name='config', version_base=None)
 def main(cfg: DictConfig):
-    if cfg.benchmark == 'gym-classic-control' and cfg.agent == 'ppo':
+    if cfg.benchmark == 'gym-classic-control' and cfg.agent_family == 'ppo':
         from workspaces.gym_workspace import PpoGymWorkspace as W
     else:
         raise NotImplementedError
