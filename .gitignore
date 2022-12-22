@@ -14,3 +14,10 @@ saved/
 
 #virtual env
 env_rl4chem/
+
+#notebooks
+notebooks/
+
+#package dependencies
+dockstring
+group-selfies
