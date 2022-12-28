@@ -87,11 +87,10 @@ class GroupSelfies_Molecule_Env:
 
         # Build the molecule - add fragment
         if self.molecule is None:
-            self.molecule = self.grammar.full_encoder(group_sf_token)
+            self.molecule = group_sf_token
         else:
-            mol_string = self.molecule
-            mol_string += group_sf_token
-            self.molecule = self.grammar.full_encoder(mol_string)
+            mol_string = deepcopy(self.molecule)
+            self.molecule += mol_string
 
         # Set Next State
         next_state = self.molecule
