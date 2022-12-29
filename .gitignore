@@ -16,7 +16,7 @@ saved/
 env_rl4chem/
 
 #notebooks
-notebooks/
+#notebooks/
 
 #package dependencies
 dockstring
