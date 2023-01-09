@@ -16,8 +16,10 @@ saved/
 env_rl4chem/
 
 #notebooks
-#notebooks/
+notebooks/
+
+#datasets
+datasets/
 
 #package dependencies
-dockstring
-group-selfies
+dockstring/
