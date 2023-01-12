@@ -59,7 +59,9 @@ def calculateScore(m):
         nf += v
         sfp = bitId
         score1 += _fscores.get(sfp, -4) * v
-    score1 /= nf
+
+    z = float((nf == 0.0)) * 1e-8  #to avoid divide by zero error
+    score1 /= (nf + z)
 
     # features score
     nAtoms = m.GetNumAtoms()

@@ -1,0 +1,45 @@
+agent: sac
+
+#common
+id: 'selfies'
+device: 'cuda'
+seed: 1
+
+#data
+num_train_steps: 1000000
+env_buffer_size: 100000
+explore_steps: 10000
+batch_size: 256
+
+#learning
+gamma: 0.99
+tau: 0.01
+target_update_interval: 1
+policy_update_interval: 2
+lr: {'actor':3e-4, 'critic':1e-3, 'alpha':1e-3}
+
+#exploration
+target_entropy_ratio: 0.5
+
+#hidden_dims and layers
+hidden_dims: 256
+
+#evaluation
+eval_episode_interval: 10000
+num_eval_episodes: 5
+
+#logging
+wandb_log: False
+wandb_entity: 'raj19'
+wandb_run_name: 'sac-disc'
+log_interval: 100
+
+#saving
+save_snapshot: False
+save_snapshot_interval: 100000
+
+hydra:
+  run:
+    dir: ./local_exp/${now:%Y.%m.%d}/${now:%H.%M.%S}_${seed}
+  job:
+    chdir: True
