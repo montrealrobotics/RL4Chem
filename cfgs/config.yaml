@@ -13,13 +13,13 @@ batch_size: 256
 
 #learning
 gamma: 0.99
-tau: 0.01
+tau: 0.005
 target_update_interval: 1
 policy_update_interval: 2
 lr: {'actor':3e-4, 'critic':1e-3, 'alpha':1e-3}
 
 #exploration
-target_entropy_ratio: 0.5
+entropy_coefficient: 0.001
 
 #hidden_dims and layers
 hidden_dims: 256

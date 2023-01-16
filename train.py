@@ -31,7 +31,7 @@ def make_agent(env, device, cfg):
     if cfg.agent == 'sac':
         from sac import SacAgent
         agent = SacAgent(device, obs_dims, num_actions, obs_dtype, action_dtype, env_buffer_size, cfg.gamma, cfg.tau,
-                        cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.target_entropy_ratio,
+                        cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.entropy_coefficient,
                         cfg.hidden_dims, cfg.wandb_log, cfg.log_interval)
     else:
         raise NotImplementedError
@@ -70,7 +70,8 @@ class Workspace:
         self._train_step = 0
         self._train_episode = 0
         self._best_eval_returns = -np.inf
-        
+        self._best_train_returns = -np.inf
+
     def set_seed(self):
         random.seed(self.cfg.seed)
         np.random.seed(self.cfg.seed)
@@ -78,7 +79,7 @@ class Workspace:
         torch.cuda.manual_seed_all(self.cfg.seed)
 
     def _explore(self):
-
+        print('random exploration begins')
         state, done = self.train_env.reset(), False
         explore_episode = 0
         for explore_step in range(1, self.cfg.explore_steps):
@@ -97,9 +98,10 @@ class Workspace:
             if done:
                 explore_episode += 1
                 state, done = self.train_env.reset(), False
-                print("Explore episode: {}, explore step: {}, return: {}".format(explore_episode, explore_step, round(info["episode"]["r"], 2)))
+                # print("Explore episode: {}, explore step: {}, return: {}".format(explore_episode, explore_step, round(info["episode"]["r"], 2)))
             else:
                 state = next_state
+        print('random exploration complete')
 
     def train(self):
         self._explore()
@@ -118,14 +120,12 @@ class Workspace:
             if self._train_step % self.cfg.eval_episode_interval == 0:
                     self._eval()
 
-            # self.train_env.render()
-
             if self.cfg.save_snapshot and self._train_step % self.cfg.save_snapshot_interval == 0:
                 self.save_snapshot()
         
             if done:
                 self._train_episode += 1
-                print("Episode: {}, total numsteps: {}, return: {}".format(self._train_episode, self._train_step, round(info["episode"]["r"], 2)))
+                
                 if self.cfg.wandb_log:
                     episode_metrics = dict()
                     episode_metrics['episodic_length'] = info["episode"]["l"]
@@ -133,9 +133,17 @@ class Workspace:
                     episode_metrics['steps_per_second'] = info["episode"]["l"]/(time.time() - episode_start_time)
                     episode_metrics['env_buffer_length'] = len(self.agent.env_buffer)
                     wandb.log(episode_metrics, step=self._train_step)
+                
+                if self.cfg.id in ['selfies'] and info["episode"]["r"] > self._best_train_returns:
+                    self._best_train_returns = info["episode"]["r"]
+                    print('Total numsteps: {}, smile: {}, LogP score: {} \n'.format(self._train_step, info['smile'],  self._best_train_returns))
+                    
                 state, done, episode_start_time = self.train_env.reset(), False, time.time()
             else:
                 state = next_state
+
+            if self._train_step % 1000 == 0:
+                print("Episode: {}, total numsteps: {}, return: {}".format(self._train_episode, self._train_step, round(episode_metrics['episodic_return'], 2)))
 
     def _eval(self):
         returns = 0 
@@ -151,11 +159,11 @@ class Workspace:
             returns += info["episode"]["r"]
             steps += info["episode"]["l"]
             
-            print("Episode: {}, total numsteps: {}, return: {}".format(self._train_episode, self._train_step, round(info["episode"]["r"], 2)))
-
         eval_metrics = dict()
         eval_metrics['eval_episodic_return'] = returns/self.cfg.num_eval_episodes
         eval_metrics['eval_episodic_length'] = steps/self.cfg.num_eval_episodes
+
+        print("Episode: {}, total numsteps: {}, average Evaluation return: {}".format(self._train_episode, self._train_step, round(eval_metrics['eval_episodic_return'], 2)))
 
         if self.cfg.save_snapshot and returns/self.cfg.num_eval_episodes >= self._best_eval_returns:
             self.save_snapshot(best=True)

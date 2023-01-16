@@ -49,7 +49,7 @@ class Critic(nn.Module):
 class SacAgent:
     def __init__(self, device, obs_dims, num_actions, obs_dtype, action_dtype, env_buffer_size,
                 gamma, tau, policy_update_interval, target_update_interval, lr, batch_size, 
-                target_entropy_ratio, hidden_dims, wandb_log, log_interval):
+                entropy_coefficient, hidden_dims, wandb_log, log_interval):
         '''To-do:
         Try straight through gradients for actor
         Add more implementation details like target actor, noisy td updates, increase critic learning rate
@@ -66,7 +66,8 @@ class SacAgent:
         self.batch_size = batch_size
 
         #exploration
-        self.target_entropy = -np.log(1.0 / num_actions) * target_entropy_ratio
+        self.entropy_coefficient = entropy_coefficient
+        # self.target_entropy = -np.log(1.0 / num_actions) * 0.98
 
         #logging        
         self.wandb_log = wandb_log
@@ -118,10 +119,10 @@ class SacAgent:
         with torch.no_grad():    
             next_action_dist = self.actor(next_state_batch)
             next_action_probs = next_action_dist.probs
-            next_action_entropy = next_action_dist.entropy()
+            # next_action_entropy = next_action_dist.entropy()
 
             target_Q1, target_Q2 = self.critic_target(next_state_batch)
-            target_V = (next_action_probs * ( torch.min(target_Q1, target_Q2) ) ).sum(dim=1) + self.alpha * next_action_entropy
+            target_V = (next_action_probs * ( torch.min(target_Q1, target_Q2) ) ).sum(dim=1) # + self.alpha * next_action_entropy
            
             target_Q = reward_batch + discount_batch * target_V
             
@@ -152,22 +153,23 @@ class SacAgent:
         action_probs = action_dist.probs
         action_entropy = action_dist.entropy()
 
-        actor_loss = - (torch.sum(action_probs * Q, dim=1) + self.alpha * action_entropy).mean()
-       
+        # actor_loss = - (torch.sum(action_probs * Q, dim=1) + self.alpha * action_entropy).mean()
+        actor_loss = - (torch.sum(action_probs * Q, dim=1) + self.entropy_coefficient * action_entropy).mean()
+
         self.actor_opt.zero_grad()
         actor_loss.backward()
         self.actor_opt.step()
         
-        alpha_loss = -torch.mean(self.log_alpha.exp() * (self.target_entropy - action_entropy.detach()))
-        self.alpha_optim.zero_grad()
-        alpha_loss.backward()
-        self.alpha_optim.step()
-        self.alpha = self.log_alpha.exp().item()
+        # alpha_loss = -torch.mean(self.log_alpha.exp() * (self.target_entropy - action_entropy.detach()))
+        # self.alpha_optim.zero_grad()
+        # alpha_loss.backward()
+        # self.alpha_optim.step()
+        # self.alpha = self.log_alpha.exp().item()
 
         if log:
             metrics['actor_loss'] = actor_loss.item()
-            metrics['alpha_loss'] = alpha_loss.item()
-            metrics['alpha'] = self.alpha
+            # metrics['alpha_loss'] = alpha_loss.item()
+            # metrics['alpha'] = self.alpha
             metrics['actor_entropy'] = action_entropy.detach().mean().item()
 
     def _init_networks(self, obs_dims, num_actions, hidden_dims):
@@ -177,13 +179,13 @@ class SacAgent:
         self.critic_target = Critic(obs_dims, hidden_dims, num_actions).to(self.device)
         utils.hard_update(self.critic_target, self.critic)
 
-        self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
-        self.alpha = self.log_alpha.exp().item()
+        # self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
+        # self.alpha = self.log_alpha.exp().item()
 
     def _init_optims(self, lr):
         self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=lr['actor'])
         self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=lr['critic'])
-        self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=lr['alpha'])
+        # self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=lr['alpha'])
 
     def get_save_dict(self):
         return {
