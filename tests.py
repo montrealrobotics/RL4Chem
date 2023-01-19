@@ -24,11 +24,11 @@ class Workspace:
         self._train_episode = 0
         self._best_eval_returns = -np.inf
 
-        # self._probe_level_one(cfg)    # One action, zero observation, one timestep long, +1 reward every timestep:
-        # self._probe_level_two(cfg)    # One action, random +1/-1 observation, one timestep long, obs-dependent +1/-1 reward every time
-        # self._probe_level_three(cfg)  # One action, zero-then-one observation, two timesteps long, +1 reward at the end
-        # self._probe_level_four(cfg)   # Two actions, zero observation, one timestep long, action-dependent +1/-1 reward
-        # self._probe_level_five(cfg)   # Two actions, random +1/-1 observation, one timestep long, action-and-obs dependent +1/-1 reward
+        self._probe_level_one(cfg)    # One action, zero observation, one timestep long, +1 reward every timestep:
+        self._probe_level_two(cfg)    # One action, random +1/-1 observation, one timestep long, obs-dependent +1/-1 reward every time
+        self._probe_level_three(cfg)  # One action, zero-then-one observation, two timesteps long, +1 reward at the end
+        self._probe_level_four(cfg)   # Two actions, zero observation, one timestep long, action-dependent +1/-1 reward
+        self._probe_level_five(cfg)   # Two actions, random +1/-1 observation, one timestep long, action-and-obs dependent +1/-1 reward
 
     def set_seed(self):
         random.seed(self.cfg.seed)
@@ -110,7 +110,6 @@ class Workspace:
                     print('training step = ', self._train_step)
                     print(tabulate(table1, headers='firstrow', tablefmt='fancy_grid'))
                     print(tabulate(table2, headers='firstrow', tablefmt='fancy_grid'))
-                    print('===================================================================================================================================================')
 
 
     def _probe_level_four(self, cfg):
@@ -186,7 +185,7 @@ class Workspace:
         if cfg.agent == 'sac':
             from sac import SacAgent
             self.agent = SacAgent(self.device, obs_dims, num_actions, obs_dtype, action_dtype, env_buffer_size, cfg.gamma, cfg.tau,
-                            cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.target_entropy_ratio,
+                            cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.entropy_coefficient,
                             cfg.hidden_dims, False, 1)
         else:
             raise NotImplementedError       
@@ -236,7 +235,7 @@ class Workspace:
         if cfg.agent == 'sac':
             from sac import SacAgent
             self.agent = SacAgent(self.device, obs_dims, num_actions, obs_dtype, action_dtype, env_buffer_size, cfg.gamma, cfg.tau,
-                            cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.target_entropy_ratio,
+                            cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.entropy_coefficient,
                             cfg.hidden_dims, False, 1)
         else:
             raise NotImplementedError       
@@ -286,7 +285,7 @@ class Workspace:
         if cfg.agent == 'sac':
             from sac import SacAgent
             self.agent = SacAgent(self.device, obs_dims, num_actions, obs_dtype, action_dtype, env_buffer_size, cfg.gamma, cfg.tau,
-                            cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.target_entropy_ratio,
+                            cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.entropy_coefficient,
                             cfg.hidden_dims, False, 1)
         else:
             raise NotImplementedError       

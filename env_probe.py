@@ -5,6 +5,7 @@ from collections import defaultdict
 # Taken from https://andyljones.com/posts/rl-debugging.html#probe
 
 class level_one_env(object):
+    # One action, zero observation, one timestep long, +1 reward every timestep:
     def __init__(self, episode_length=1):
         # Set episode length
         self.episode_length = episode_length
@@ -54,6 +55,7 @@ class level_one_env(object):
         return self.observation_space[0], reward, done, info
 
 class level_two_env(object):
+    # One action, random +1/-1 observation, one timestep long, obs-dependent +1/-1 reward every time
     def __init__(self, episode_length=1):
         # Set episode length
         self.episode_length = episode_length
@@ -112,64 +114,7 @@ class level_two_env(object):
         return self.observation_space[np.random.randint(self.num_observations)], reward, done, info
 
 class level_three_env(object):
-    def __init__(self, episode_length=2):
-        # Set episode length
-        self.episode_length = episode_length
-
-        # Define action space 
-        self.action_space = [0]
-
-        # Define observation space 
-        self.observation_space = [[0], [1]]
-
-        # Set observation and action space length
-        self.num_observations = 2
-        self.observation_length = 1
-        self.action_space_length = 1
-
-        # Initialize episode stats
-        self.t = 0
-        self.r = 0
-        self.state = self.observation_space[0]
-
-    def reward(self):
-        if self.state == [0]:
-            reward = 0
-        elif self.state == [1]:
-            reward = 1
-        else:
-            raise ValueError
-        return reward 
-
-    def reset(self):
-        # Initialize episode stats
-        self.t = 0
-        self.r = 0
-        self.state = self.observation_space[0]
-        return self.state
-    
-    def step(self, action):
-        assert self.t <= self.episode_length, 'episode has exceeded predefined limit, use env.reset()'
-        assert action >=0 and action < self.action_space_length
-        info = defaultdict(dict)
-
-        reward = self.reward()
-
-        self.t += 1
-        self.r += reward
-
-        if self.t >= self.episode_length:
-            done = True
-            info["episode"]["r"] = self.r
-            info["episode"]["l"] = self.t
-            self.state = self.observation_space[np.random.randint(self.num_observations)] 
-        else:
-            done = False
-            self.state = self.observation_space[self.t]
-
-        return self.state, reward, done, info
-
-class level_three_env(object):
+    # One action, zero-then-one observation, two timesteps long, +1 reward at the end
     def __init__(self, episode_length=2):
         # Set episode length
         self.episode_length = episode_length
@@ -228,6 +173,7 @@ class level_three_env(object):
         return self.state, reward, done, info
 
 class level_four_env(object):
+    # Two actions, zero observation, one timestep long, action-dependent +1/-1 reward
     def __init__(self, episode_length=1):
         # Set episode length
         self.episode_length = episode_length
@@ -281,6 +227,7 @@ class level_four_env(object):
         return self.observation_space[0], reward, done, info
 
 class level_five_env(object):
+    # Two actions, random +1/-1 observation, one timestep long, action-and-obs dependent +1/-1 reward
     def __init__(self, episode_length=1):
         # Set episode length
         self.episode_length = episode_length

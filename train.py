@@ -42,7 +42,7 @@ def make_env(cfg):
     print(cfg.id)
     if cfg.id == 'selfies':
         from env import selfies_env
-        return selfies_env(), selfies_env()
+        return selfies_env(target=cfg.target), selfies_env(target=cfg.target)
     elif cfg.id in ['CartPole-v1', 'LunarLander-v2', 'Acrobot-v1', 'MountainCar-v0']:
         import gym  
         def make_env(cfg):
@@ -82,7 +82,7 @@ class Workspace:
         print('random exploration begins')
         state, done = self.train_env.reset(), False
         explore_episode = 0
-        for explore_step in range(1, self.cfg.explore_steps):
+        for _ in range(1, self.cfg.explore_steps):
             
             if self.cfg.id == 'selfies':
                 action = np.random.randint(self.train_env.num_actions)
@@ -98,7 +98,6 @@ class Workspace:
             if done:
                 explore_episode += 1
                 state, done = self.train_env.reset(), False
-                # print("Explore episode: {}, explore step: {}, return: {}".format(explore_episode, explore_step, round(info["episode"]["r"], 2)))
             else:
                 state = next_state
         print('random exploration complete')
@@ -125,26 +124,26 @@ class Workspace:
         
             if done:
                 self._train_episode += 1
-                
+                episode_metrics = dict()
+                episode_metrics['episodic_return'] = info["episode"]["r"]
+                    
                 if self.cfg.wandb_log:
-                    episode_metrics = dict()
                     episode_metrics['episodic_length'] = info["episode"]["l"]
-                    episode_metrics['episodic_return'] = info["episode"]["r"]
                     episode_metrics['steps_per_second'] = info["episode"]["l"]/(time.time() - episode_start_time)
+                    episode_metrics.update(info['episode_logs'])
                     episode_metrics['env_buffer_length'] = len(self.agent.env_buffer)
                     wandb.log(episode_metrics, step=self._train_step)
                 
                 if self.cfg.id in ['selfies'] and info["episode"]["r"] > self._best_train_returns:
                     self._best_train_returns = info["episode"]["r"]
-                    print('Total numsteps: {}, smile: {}, LogP score: {} \n'.format(self._train_step, info['smile'],  self._best_train_returns))
+                    print('Total numsteps: {}, smile: {}, pLogP score: {} \n'.format(self._train_step, info['smiles'], round(episode_metrics['episodic_return'], 2)))
+                else:
+                    print("Episode: {}, total numsteps: {}, return: {}".format(self._train_episode, self._train_step, round(episode_metrics['episodic_return'], 2)))
                     
                 state, done, episode_start_time = self.train_env.reset(), False, time.time()
             else:
                 state = next_state
-
-            if self._train_step % 1000 == 0:
-                print("Episode: {}, total numsteps: {}, return: {}".format(self._train_episode, self._train_step, round(episode_metrics['episodic_return'], 2)))
-
+                
     def _eval(self):
         returns = 0 
         steps = 0
