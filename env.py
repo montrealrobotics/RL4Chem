@@ -2,7 +2,7 @@ import numpy as np
 import selfies as sf
 
 from rdkit import Chem
-from collections import defaultdict
+from collections import defaultdict, deque
 from metrics.metrics import get_penalized_logp_reward, get_QED_reward, steric_strain_filter, zinc_molecule_filter
 
 class selfies_env(object):
@@ -93,17 +93,17 @@ class selfies_env(object):
             info["episode"]["l"] = self.t 
             info['smiles'] = molecule_smiles            
         else:
-            # reward = -1
-            reward = 0
+            reward = -1
+            # reward = 0
 
         return self.onehot_selfies(self.molecule_selfie), reward, done, info
 
 if __name__ == '__main__':
     env = selfies_env()
-    for i in range(1):
-        state = env.reset()
-        done = False
-        while not done:
-            action = np.random.randint(env.action_space_length)
-            state, reward, done, info = env.step(action)
-            print(info)
+    # for i in range(1):
+    #     state = env.reset()
+    #     done = False
+    #     while not done:
+    #         action = np.random.randint(env.action_space_length)
+    #         state, reward, done, info = env.step(action)
+    #         print(info)
