@@ -291,9 +291,9 @@ class level_five_env(object):
 
 if __name__ == '__main__':
     np.random.seed(1)
-    probe_envs = [level_one_env, level_two_env]
+    probe_envs = [level_one_env, level_two_env, level_three_env, level_four_env, level_five_env]
     
-    for env_class in probe_envs:
+    for i,env_class in enumerate(probe_envs):
         env = env_class()
         state = env.reset()
         done = False
@@ -302,3 +302,5 @@ if __name__ == '__main__':
             state, reward, done, info = env.step(action)
 
             print(state, reward, done, info)
+        
+        print('Level', i+1, 'probe environent is done.\n')

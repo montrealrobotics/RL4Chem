@@ -64,6 +64,7 @@ class Workspace:
             self.checkpoint_path = self.work_dir / 'checkpoints'
             self.checkpoint_path.mkdir(exist_ok=True)
 
+        self.set_seed()
         self.device = torch.device(cfg.device)
         self.train_env, self.eval_env = make_env(self.cfg)
         self.agent = make_agent(self.train_env, self.device, self.cfg)

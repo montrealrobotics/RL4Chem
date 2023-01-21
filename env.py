@@ -90,11 +90,11 @@ class selfies_env(object):
             reward, reward_info = self.property_fn(molecule)
             info["episode_logs"].update(reward_info)
             info["episode"]["r"] = reward
-            info["episode"]["l"] = self.t 
-            info['smiles'] = molecule_smiles            
+            info["episode"]["l"] = self.t
+            info['smiles'] = molecule_smiles
         else:
-            # reward = -1
-            reward = 0
+            reward = -1
+            # reward = 0
 
         return self.onehot_selfies(self.molecule_selfie), reward, done, info
 
