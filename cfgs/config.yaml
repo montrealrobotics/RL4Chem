@@ -14,8 +14,11 @@ env_buffer_size: 100000
 explore_steps: 10000
 batch_size: 256
 max_selfie_length: 40
+obs_dtype:
+action_dtype:
 
 #learning
+shape: False
 gamma: 0.99
 tau: 0.01
 target_update_interval: 1

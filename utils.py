@@ -25,7 +25,13 @@ class ReplayMemory():
         self.terminal[self.idx] = done
         self.idx = (self.idx + 1) % self.buffer_limit
         self.full = self.full or self.idx == 0
-
+    
+    def push_sequence(self, transitions, L):
+        states, actions, rewards, next_states, dones = transitions
+        idxs = np.arange(self.idx, self.idx + L) % self.buffer_limit
+        print(idxs)
+        exit()
+        
     def sample(self, n):
         idxes = np.random.randint(0, self.buffer_limit if self.full else self.idx, size=n)
         return self.observation[idxes], self.action[idxes], self.reward[idxes], self.next_observation[idxes], self.terminal[idxes]

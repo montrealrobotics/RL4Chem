@@ -93,8 +93,8 @@ class selfies_env(object):
             info["episode"]["l"] = self.t
             info['smiles'] = molecule_smiles
         else:
-            reward = -1
-            # reward = 0
+            # reward = -1
+            reward = 0
 
         return self.onehot_selfies(self.molecule_selfie), reward, done, info
 
