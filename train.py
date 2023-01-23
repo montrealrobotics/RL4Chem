@@ -14,14 +14,14 @@ def make_agent(env, device, cfg):
     if cfg.id == 'selfies':
         obs_dims = np.prod(env.observation_shape)
         num_actions = env.num_actions
-        cfg.obs_dtype = np.uint8
-        cfg.action_dtype = np.int32
+        obs_dtype = np.uint8
+        action_dtype = np.int32
 
     elif cfg.id in ['CartPole-v1', 'LunarLander-v2', 'Acrobot-v1', 'MountainCar-v0']:
         obs_dims = np.prod(env.observation_space.shape)
         num_actions = env.action_space.n
-        cfg.obs_dtype = env.observation_space.dtype
-        cfg.action_dtype = np.int32
+        obs_dtype = env.observation_space.dtype
+        action_dtype = np.int32
 
     else:
         raise NotImplementedError
@@ -30,13 +30,13 @@ def make_agent(env, device, cfg):
 
     if cfg.agent == 'sac':
         from sac import SacAgent
-        agent = SacAgent(device, obs_dims, num_actions, cfg.obs_dtype, cfg.action_dtype, env_buffer_size, cfg.gamma, cfg.tau,
+        agent = SacAgent(device, obs_dims, num_actions, obs_dtype, action_dtype, env_buffer_size, cfg.gamma, cfg.tau,
                         cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.entropy_coefficient,
                         cfg.hidden_dims, cfg.wandb_log, cfg.log_interval)
     else:
         raise NotImplementedError
     
-    return agent, cfg 
+    return agent
 
 def make_env(cfg):
     print(cfg.id)
@@ -67,11 +67,11 @@ class RewardshapedWorkspace:
         self.set_seed()
         self.device = torch.device(cfg.device)
         self.train_env, self.eval_env = make_env(self.cfg)
-        self.agent, self.cfg = make_agent(self.train_env, self.device, self.cfg)
+        self.agent = make_agent(self.train_env, self.device, self.cfg)
         self._train_step = 0
         self._train_episode = 0
         self._best_eval_returns = -np.inf
-        self._best_train_returns = -np.inf
+        self._best_train_returns = -np.inf            
 
     def set_seed(self):
         random.seed(self.cfg.seed)
@@ -105,22 +105,31 @@ class RewardshapedWorkspace:
 
     def _collect_episode(self):
         episode_metrics = dict()
-
         state, done = self.train_env.reset(), False
-
-        states = np.empty((self.cfg.max_selfie_length+1, np.prod(self.train_env.observation_shape)), dtype=self.cfg.obs_dtype) 
-        actions = np.empty((self.cfg.max_selfie_length+1, 1), dtype=self.cfg.action_dtype)
-        rewards = np.empty((self.cfg.max_selfie_length+1,), dtype=np.float32) 
-        terminals = np.empty((self.cfg.max_selfie_length+1,), dtype=bool)
-        self.agent.env_buffer.push_sequence((states[:-1], actions, rewards, states[1:], terminals))
-
+        states = np.empty((self.cfg.max_selfie_length + 1, np.prod(self.train_env.observation_shape)), dtype=self.agent.env_buffer.obs_dtype) 
+        actions = np.empty((self.cfg.max_selfie_length, 1), dtype=self.agent.env_buffer.action_dtype)
+        rewards = np.zeros((self.cfg.max_selfie_length,), dtype=np.float32) 
+        terminals = np.zeros((self.cfg.max_selfie_length,), dtype=bool)
+        
+        step = 0
+        states[step] = state 
         while not done:
             action = self.agent.get_action(state, self._train_step)
             next_state, reward, done, info = self.train_env.step(action)
+
             if not done: 
                 assert reward == 0
+            if done:
+                rewards = rewards + reward
+                terminals[step] = False if info.get("TimeLimit.truncated", False) else done
+
+            states[step+1] = next_state
+            actions[step] = action
+            step += 1
             state = next_state
-        
+
+        assert step==info["episode"]["l"]
+        self.agent.env_buffer.push_sequence((states[:-1], actions, rewards, states[1:], terminals), info["episode"]["l"])
         episode_metrics['episodic_return'] = info["episode"]["r"]            
         episode_metrics['episodic_length'] = info["episode"]["l"]
         episode_metrics.update(info['episode_logs'])
@@ -142,11 +151,8 @@ class RewardshapedWorkspace:
             episode_start_time = time.time()
             episode_metrics = dict()
             episode_metrics.update(self._collect_episode())
-            exit()
-
-            #self.agent.env_buffer.push((state, action, reward, next_state, False if info.get("TimeLimit.truncated", False) else done))
-
-            for _ in range(episode_metrics["episode"]["l"]):
+            
+            for _ in range(episode_metrics["episodic_length"]):
 
                 self.agent.update(self._train_step)
                 self._train_step += 1
@@ -158,7 +164,7 @@ class RewardshapedWorkspace:
                     self.save_snapshot()
             
             if self.cfg.wandb_log:
-                episode_metrics['steps_per_second'] = episode_metrics["episode"]["l"]/(time.time() - episode_start_time)
+                episode_metrics['steps_per_second'] = episode_metrics["episodic_length"]/(time.time() - episode_start_time)
                 wandb.log(episode_metrics, step=self._train_step)
                             
     def _eval(self):
@@ -207,7 +213,7 @@ class Workspace:
         self.set_seed()
         self.device = torch.device(cfg.device)
         self.train_env, self.eval_env = make_env(self.cfg)
-        self.agent, self.cfg = make_agent(self.train_env, self.device, self.cfg)
+        self.agent = make_agent(self.train_env, self.device, self.cfg)
         self._train_step = 0
         self._train_episode = 0
         self._best_eval_returns = -np.inf
@@ -271,7 +277,8 @@ class Workspace:
                 if self.cfg.wandb_log:
                     episode_metrics['episodic_length'] = info["episode"]["l"]
                     episode_metrics['steps_per_second'] = info["episode"]["l"]/(time.time() - episode_start_time)
-                    episode_metrics.update(info['episode_logs'])
+                    if self.cfg.id in ['selfies']:
+                        episode_metrics.update(info['episode_logs'])
                     episode_metrics['env_buffer_length'] = len(self.agent.env_buffer)
                     wandb.log(episode_metrics, step=self._train_step)
                 

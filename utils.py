@@ -8,6 +8,8 @@ class ReplayMemory():
     def __init__(self, buffer_limit, obs_dims, obs_dtype, action_dtype):
         print('buffer limit is = ', buffer_limit)
         self.buffer_limit = buffer_limit
+        self.obs_dtype = obs_dtype
+        self.action_dtype = action_dtype
         self.observation = np.empty((buffer_limit, obs_dims), dtype=obs_dtype) 
         self.next_observation = np.empty((buffer_limit, obs_dims), dtype=obs_dtype) 
         self.action = np.empty((buffer_limit, 1), dtype=action_dtype)
@@ -29,9 +31,14 @@ class ReplayMemory():
     def push_sequence(self, transitions, L):
         states, actions, rewards, next_states, dones = transitions
         idxs = np.arange(self.idx, self.idx + L) % self.buffer_limit
-        print(idxs)
-        exit()
-        
+        self.observation[idxs] = states
+        self.next_observation[idxs] = next_states
+        self.action[idxs] = actions 
+        self.reward[idxs] = rewards
+        self.terminal[idxs] = dones
+        self.idx = (idxs[-1] + 1) % self.buffer_limit
+        self.full = self.full or 0 in idxs
+
     def sample(self, n):
         idxes = np.random.randint(0, self.buffer_limit if self.full else self.idx, size=n)
         return self.observation[idxes], self.action[idxes], self.reward[idxes], self.next_observation[idxes], self.terminal[idxes]
