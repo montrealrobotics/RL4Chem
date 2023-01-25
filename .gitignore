@@ -23,9 +23,13 @@ datasets/
 
 #package dependencies
 dockstring/
+openbabel.git
 
 #local experiments
 local_exp/
+
+#tests
+test/
 
 #results
 results
