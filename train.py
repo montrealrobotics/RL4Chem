@@ -119,7 +119,9 @@ class Workspace:
                 if info["episode"]["r"] > self._best_train_returns:
                     self._best_train_returns = info["episode"]["r"]
                     print('Total numsteps: {}, smile: {}, score: {} \n'.format(self._train_step, info['smiles'], round(episode_metrics['episodic_return'], 2)))
-                
+                else:
+                    print("Episode: {}, total numsteps: {}, return: {}".format(self._train_episode, self._train_step, round(episode_metrics['episodic_return'], 2)))
+                  
                 state, done, episode_start_time = self.train_env.reset(), False, time.time()
             else:
                 state = next_state
