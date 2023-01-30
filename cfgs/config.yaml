@@ -1,19 +1,20 @@
 agent: sac
 
 #common
-id: 'selfies'
+id: 'selfies_docking'
 device: 'cuda'
 seed: 1
 
 #selfie environment specific
-target: 'plogp'
+target: 'fa7'
+selfies_enc_type: 'one_hot'
+max_selfie_length: 40
 
 #data
 num_train_steps: 1000000
 env_buffer_size: 100000
 explore_steps: 10000
 batch_size: 256
-max_selfie_length: 40
 obs_dtype:
 action_dtype:
 
@@ -49,4 +50,4 @@ hydra:
   run:
     dir: ./local_exp/${now:%Y.%m.%d}/${now:%H.%M.%S}_${seed}
   job:
-    chdir: True
+    chdir: False

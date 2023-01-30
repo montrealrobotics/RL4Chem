@@ -139,8 +139,8 @@ class DockingVina(object):
             except Exception as e:
                 # print(e)
                 # print("gen_3d unexpected error:", sys.exc_info())
-                print("smiles: ", smi)
-                return_dict[idx] = 99.9
+                # print("smiles: ", smi)
+                return_dict[idx] = 5.0
                 continue
             try:
                 affinity_list = self.docking(receptor_file, ligand_mol_file,
@@ -148,11 +148,11 @@ class DockingVina(object):
             except Exception as e:
                 #print(e)
                 # print("docking unexpected error:", sys.exc_info())
-                print("smiles: ", smi)
-                return_dict[idx] = 99.9
+                # print("smiles: ", smi)
+                return_dict[idx] = 5.0
                 continue
             if len(affinity_list)==0:
-                affinity_list.append(99.9)
+                affinity_list.append(5.0)
             
             affinity = affinity_list[0]
             return_dict[idx] = affinity
@@ -161,7 +161,7 @@ class DockingVina(object):
         """
             input SMILES list
             output affinity list corresponding to the SMILES list
-            if docking is fail, docking score is 99.9
+            if docking is fail, docking score is 5.0
         """
         data = list(enumerate(smiles_list))
         q1 = Queue()

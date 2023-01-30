@@ -40,7 +40,8 @@ class selfies_env(object):
         self.action_space_length = len(self.action_space)
         
         # Set observation and action space shape
-        self.observation_shape = (self.max_selfies_length*self.alphabet_length,)
+        # self.observation_shape = (self.max_selfies_length*self.alphabet_length,)
+        self.observation_shape = (self.max_selfies_length,)
         self.num_actions = self.action_space_length
 
         # Initialize selfie string
@@ -50,7 +51,7 @@ class selfies_env(object):
         self.t = 0
 
     def onehot_selfies(self, molecule_selfie):
-        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='one_hot'), dtype=np.uint8).flatten()
+        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='label'), dtype=np.uint8).flatten()/10
         
     def reset(self):
         # Initialize selfie string
@@ -100,10 +101,10 @@ class selfies_env(object):
 
 if __name__ == '__main__':
     env = selfies_env()
-    # for i in range(1):
-    #     state = env.reset()
-    #     done = False
-    #     while not done:
-    #         action = np.random.randint(env.action_space_length)
-    #         state, reward, done, info = env.step(action)
-    #         print(info)
+    for i in range(1):
+        state = env.reset()
+        done = False
+        while not done:
+            action = np.random.randint(env.action_space_length)
+            state, reward, done, info = env.step(action)
+            print(state)
