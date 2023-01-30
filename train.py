@@ -84,8 +84,7 @@ class Workspace:
         print('random exploration complete')
 
     def train(self):
-        self.save_snapshot()
-       #self._explore()
+        self._explore()
         self._eval()
         
         state, done, episode_start_time = self.train_env.reset(), False, time.time()
