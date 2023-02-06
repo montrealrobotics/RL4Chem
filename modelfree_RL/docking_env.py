@@ -39,15 +39,15 @@ class selfies_docking_env(object):
             raise NotImplementedError
 
         self.box_parameter = (self.box_center, self.box_size)
-        self.docking_config['vina_program'] = 'qvina2'
         self.docking_config['box_parameter'] = self.box_parameter
-        self.docking_config['temp_dir'] = 'tmp'
-        self.docking_config['exhaustiveness'] = 1
-        self.docking_config['num_sub_proc'] = 1
-        self.docking_config['num_cpu_dock'] = 1
-        self.docking_config['num_modes'] = 10 
-        self.docking_config['timeout_gen3d'] = 30
-        self.docking_config['timeout_dock'] = 100 
+        self.docking_config['vina_program'] = cfg.vina_program
+        self.docking_config['temp_dir'] = cfg.temp_dir
+        self.docking_config['exhaustiveness'] = cfg.exhaustiveness
+        self.docking_config['num_sub_proc'] = cfg.num_sub_proc
+        self.docking_config['num_cpu_dock'] = cfg.num_cpu_dock
+        self.docking_config['num_modes'] = cfg.num_modes
+        self.docking_config['timeout_gen3d'] = cfg.timeout_gen3d
+        self.docking_config['timeout_dock'] = cfg.timeout_dock
 
         self.predictor = DockingVina(self.docking_config)
 
@@ -64,8 +64,9 @@ class selfies_docking_env(object):
         self.action_space.sort()
         self.alphabet_length = len(self.selfie_alphabet_set)
         self.action_space_length = len(self.action_space)
-        
-        # Set observation and action space 
+        self.num_actions = self.action_space_length
+
+        # Set observation space 
         self.selfies_enc_type = cfg.selfies_enc_type
         if cfg.selfies_enc_type == 'one_hot':
             self.observation_shape = (self.max_selfies_length*self.alphabet_length,)
@@ -75,7 +76,6 @@ class selfies_docking_env(object):
             self.enc_selifes_fn = self.label_selfies
         else:
             raise NotImplementedError
-        self.num_actions = self.action_space_length
         
         # Initialize selfie string
         self.molecule_selfie = self.selfies_benzene
@@ -87,7 +87,7 @@ class selfies_docking_env(object):
         return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='one_hot'), dtype=np.uint8).flatten()
 
     def label_selfies(self, molecule_selfie):
-        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type=self.selfies_enc_type), dtype=np.uint8).flatten() / 10.0
+        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='label'), dtype=np.uint8).flatten()
   
     def reset(self):
         # Initialize selfie string
@@ -123,7 +123,7 @@ class selfies_docking_env(object):
         
         if done:
             molecule_smiles = sf.decoder(self.molecule_selfie)
-            reward = -self.predictor.predict([molecule_smiles])[0]
+            reward = np.clip(-self.predictor.predict([molecule_smiles])[0], a_min=0.0, a_max=None)
             
             info["episode_logs"]['docking_score'] = -reward
             info["episode"]["r"] = reward
@@ -134,68 +134,77 @@ class selfies_docking_env(object):
         return self.enc_selifes_fn(self.molecule_selfie), reward, done, info
 
 if __name__ == '__main__':
-    from dataclasses import dataclass
+    # from dataclasses import dataclass
 
-    @dataclass
-    class cfg:
-        target = 'fa7'
-        selfies_enc_type = 'label'
-        max_selfie_length = 40
+    # @dataclass
+    # class cfg:
+    #     target = 'fa7'
+    #     selfies_enc_type = 'label'
+    #     max_selfie_length = 40
 
-    env = selfies_docking_env(cfg)
-    smiles_list = []
-    for i in range(25):
-        state = env.reset()
-        done = False
-        while not done:
-            action = np.random.randint(env.action_space_length)
-            state, reward, done, info = env.step(action)
-        print(info['smiles'])
-        print(reward)
+    #     vina_program = 'qvina2'
+    #     temp_dir = 'tmp'
+    #     exhaustiveness = 1
+    #     num_sub_proc = 1
+    #     num_cpu_dock = 1
+    #     num_modes = 10
+    #     timeout_gen3d = 30
+    #     timeout_dock = 100
 
-    # import time
-    # start = time.time()
-    # target = 'fa7'
-    # docking_config = dict()
-
-    # if target == 'fa7':
-    #     box_center = (10.131, 41.879, 32.097)
-    #     box_size = (20.673, 20.198, 21.362)
-    #     docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/fa7/receptor.pdbqt'
-    # elif target == 'parp1':
-    #     box_center = (26.413, 11.282, 27.238)
-    #     box_size = (18.521, 17.479, 19.995)
-    #     docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/parp1/receptor.pdbqt'
-    # elif target == '5ht1b':
-    #     box_center = (-26.602, 5.277, 17.898)
-    #     box_size = (22.5, 22.5, 22.5)
-    #     docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/5ht1b/receptor.pdbqt'
-
-    # box_parameter = (box_center, box_size)
-    # docking_config['vina_program'] = 'qvina2'
-    # docking_config['box_parameter'] = box_parameter
-    # docking_config['temp_dir'] = 'tmp'
-    # docking_config['exhaustiveness'] = 1
-    # docking_config['num_sub_proc'] = 1
-    # docking_config['num_cpu_dock'] = 1
-    # docking_config['num_modes'] = 10 
-    # docking_config['timeout_gen3d'] = 30
-    # docking_config['timeout_dock'] = 100 
-
-    # predictor = DockingVina(docking_config)
-
-    # selfie_alphabet_set = sf.get_semantic_robust_alphabet()
-    # smiles_benzene = "c1ccccc1"
-    # selfies_benzene = sf.encoder(smiles_benzene)
-    # selfie_alphabet_set.add(selfies_benzene)
-    # selfie_alphabets = list(selfie_alphabet_set)
-
+    # env = selfies_docking_env(cfg)
     # smiles_list = []
-    # for i in range(1):
-    #     selfie_str=''.join(np.random.choice(selfie_alphabets, 40))
-    #     decoded_smile_str = sf.decoder(selfie_str)
-    #     smiles_list.append(decoded_smile_str)
+    # for i in range(25):
+    #     state = env.reset()
+    #     done = False
+    #     while not done:
+    #         action = np.random.randint(env.action_space_length)
+    #         state, reward, done, info = env.step(action)
+    #     print(info['smiles'])
+    #     print(reward)
+
+    import time
+    start = time.time()
+    target = 'fa7'
+    docking_config = dict()
+
+    if target == 'fa7':
+        box_center = (10.131, 41.879, 32.097)
+        box_size = (20.673, 20.198, 21.362)
+        docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/fa7/receptor.pdbqt'
+    elif target == 'parp1':
+        box_center = (26.413, 11.282, 27.238)
+        box_size = (18.521, 17.479, 19.995)
+        docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/parp1/receptor.pdbqt'
+    elif target == '5ht1b':
+        box_center = (-26.602, 5.277, 17.898)
+        box_size = (22.5, 22.5, 22.5)
+        docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/5ht1b/receptor.pdbqt'
+
+    box_parameter = (box_center, box_size)
+    docking_config['vina_program'] = 'qvina2'
+    docking_config['box_parameter'] = box_parameter
+    docking_config['temp_dir'] = 'tmp'
+    docking_config['exhaustiveness'] = 1
+    docking_config['num_sub_proc'] = 12
+    docking_config['num_cpu_dock'] = 12
+    docking_config['num_modes'] = 10 
+    docking_config['timeout_gen3d'] = 30
+    docking_config['timeout_dock'] = 100 
+
+    predictor = DockingVina(docking_config)
+
+    selfie_alphabet_set = sf.get_semantic_robust_alphabet()
+    smiles_benzene = "c1ccccc1"
+    selfies_benzene = sf.encoder(smiles_benzene)
+    selfie_alphabet_set.add(selfies_benzene)
+    selfie_alphabets = list(selfie_alphabet_set)
+
+    smiles_list = []
+    for i in range(10):
+        selfie_str=''.join(np.random.choice(selfie_alphabets, 40))
+        decoded_smile_str = sf.decoder(selfie_str)
+        smiles_list.append(decoded_smile_str)
     
-    # a_list = predictor.predict(smiles_list)
-    # print(a_list)
-    # print(time.time()-start)
+    a_list = predictor.predict(smiles_list)
+    print(a_list)
+    print(time.time()-start)

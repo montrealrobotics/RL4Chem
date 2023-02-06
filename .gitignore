@@ -27,6 +27,7 @@ openbabel.git
 
 #local experiments
 local_exp/
+wandb/
 tmp/
 
 #tests

@@ -86,7 +86,7 @@ class SacAgent:
                 action = action_dist.mode
                 
         return action.cpu().numpy()
-
+    
     def update(self, step):
         metrics = dict()
         if step % self.log_interval == 0 and self.wandb_log:

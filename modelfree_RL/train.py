@@ -34,7 +34,7 @@ def make_agent(env, device, cfg):
 def make_env(cfg):
     print(cfg.id)
     if cfg.id == 'selfies':
-        from env import selfies_env
+        from notebooks.env import selfies_env
         return selfies_env(cfg.max_selfie_length, cfg.max_selfie_length, target=cfg.target), selfies_env(cfg.max_selfie_length, cfg.max_selfie_length, target=cfg.target)
     
     elif cfg.id == 'selfies_docking':

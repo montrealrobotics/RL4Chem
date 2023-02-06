@@ -1,9 +1,9 @@
 import os
-import sys
 import subprocess
+
+from multiprocessing import Queue
 from multiprocessing import Manager
 from multiprocessing import Process
-from multiprocessing import Queue
 
 from openbabel import pybel
 
@@ -140,7 +140,7 @@ class DockingVina(object):
                 # print(e)
                 # print("gen_3d unexpected error:", sys.exc_info())
                 # print("smiles: ", smi)
-                return_dict[idx] = 5.0
+                return_dict[idx] = 99.0
                 continue
             try:
                 affinity_list = self.docking(receptor_file, ligand_mol_file,
@@ -149,10 +149,10 @@ class DockingVina(object):
                 #print(e)
                 # print("docking unexpected error:", sys.exc_info())
                 # print("smiles: ", smi)
-                return_dict[idx] = 5.0
+                return_dict[idx] = 99.0
                 continue
             if len(affinity_list)==0:
-                affinity_list.append(5.0)
+                affinity_list.append(99.0)
             
             affinity = affinity_list[0]
             return_dict[idx] = affinity
@@ -161,7 +161,7 @@ class DockingVina(object):
         """
             input SMILES list
             output affinity list corresponding to the SMILES list
-            if docking is fail, docking score is 5.0
+            if docking is fail, docking score is 99.0
         """
         data = list(enumerate(smiles_list))
         q1 = Queue()

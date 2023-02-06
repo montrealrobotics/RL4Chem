@@ -1,0 +1,24 @@
+Bootstrap: library
+From: ubuntu:22.04
+
+%post
+
+echo "Installing Tools with apt-get"
+apt-get update && apt-get -y upgrade
+apt-get -y install wget
+apt install nvidia-utils-525
+rm -rf /var/lib/apt/lists/*
+apt-get clean
+
+echo "Installing conda and Installing Tools with conda"
+cd /
+wget -c https://repo.anaconda.com/archive/Anaconda3-2022.10-Linux-x86_64.sh
+/bin/bash Anaconda3-2022.10-Linux-x86_64.sh -bfp /usr/local
+conda config --file /.condarc --add channels defaults
+conda config --file /.condarc --add channels conda-forge
+conda update conda
+
+echo "Creating mount points"
+mkdir /dataset
+mkdir /tmp_log
+mkdir /final_log
