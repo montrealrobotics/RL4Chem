@@ -85,6 +85,7 @@ class docking_env(object):
 
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
+        self.selfies_batch = []
 
         # Initialize Step
         self.t = 0
@@ -130,9 +131,9 @@ class docking_env(object):
         if done:
             molecule_smiles = sf.decoder(self.molecule_selfie)
             self.smiles_batch.append(molecule_smiles)
-            reward = None
+            self.selfies_batch.append(self.molecule_selfie)
             info["episode"]["l"] = self.t
-            info['smiles'] = molecule_smiles
+            reward = None
         else:
             reward = 0
         return self.enc_selifes_fn(self.molecule_selfie), reward, done, info
@@ -140,12 +141,14 @@ class docking_env(object):
     def reset_smiles_batch(self):
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
+        self.selfies_batch = []
 
     def get_reward_batch(self):
         info = defaultdict(dict)
         docking_scores = self.predictor.predict(self.smiles_batch)
         reward_batch = np.clip(-np.array(docking_scores), a_min=0.0, a_max=None)
         info['smiles'] = self.smiles_batch
+        info['selfies'] = self.selfies_batch
         info['docking_scores'] = docking_scores
         return reward_batch, info
 
