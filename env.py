@@ -6,14 +6,13 @@ from pathlib import Path
 from docking import DockingVina
 from collections import defaultdict
 
-class selfies_docking_env(object):
+class docking_env(object):
     '''This environment is build assuming selfies version 2.1.1
     To-do
     1) Register as an official gym environment
     '''
     def __init__(self, cfg):
 
-        # max selfies length was chosen because it is the maximum selfie length in the zinc250 dataset (selfies version 2.1.1)
         # Set maximum selfies length
         self.max_selfies_length = cfg.max_selfie_length
 
@@ -27,7 +26,7 @@ class selfies_docking_env(object):
             self.box_center = (10.131, 41.879, 32.097)
             self.box_size = (20.673, 20.198, 21.362)
             self.docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/fa7/receptor.pdbqt'
-        elif self.target == 'qed':
+        elif self.target == 'parp1':
             self.box_center = (26.413, 11.282, 27.238)
             self.box_size = (18.521, 17.479, 19.995)
             self.docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/parp1/receptor.pdbqt'
@@ -51,34 +50,41 @@ class selfies_docking_env(object):
 
         self.predictor = DockingVina(self.docking_config)
 
-        # Define action space 
+        # Define alphabet 
         self.selfie_alphabet_set = sf.get_semantic_robust_alphabet()
         self.selfie_alphabet_set.add('[nop]')
         self.selfie_alphabet = sorted(list(self.selfie_alphabet_set))
-        self.alphabet_to_idx = {s: i for i, s in enumerate(self.selfie_alphabet)}
-
-        self.action_space = list(self.selfie_alphabet_set) # add a termination action ??
-        smiles_benzene = "c1ccccc1"
-        self.selfies_benzene = sf.encoder(smiles_benzene)
-        self.action_space.append(self.selfies_benzene)
-        self.action_space.sort()
         self.alphabet_length = len(self.selfie_alphabet_set)
+        self.alphabet_to_idx = {s: i for i, s in enumerate(self.selfie_alphabet)}
+        self.idx_to_alphabet = {s: i for i, s in self.alphabet_to_idx.items()}
+
+        # Define action space 
+        self.action_space = list(self.selfie_alphabet_set) # add a termination action ??
+        self.action_space.sort()
         self.action_space_length = len(self.action_space)
         self.num_actions = self.action_space_length
+        self.action_dtype = np.uint8
 
-        # Set observation space 
+        # Define observation space
+        assert self.alphabet_length == self.action_space_length    
+
         self.selfies_enc_type = cfg.selfies_enc_type
         if cfg.selfies_enc_type == 'one_hot':
             self.observation_shape = (self.max_selfies_length*self.alphabet_length,)
             self.enc_selifes_fn = self.onehot_selfies
+            self.observation_dtype = np.uint8 
         elif cfg.selfies_enc_type == 'label':
             self.observation_shape = (self.max_selfies_length,)
             self.enc_selifes_fn = self.label_selfies
         else:
             raise NotImplementedError
-        
-        # Initialize selfie string
-        self.molecule_selfie = self.selfies_benzene
+
+        # Initialize selfie string as benzene
+        smiles_benzene = "c1ccccc1"
+        self.init_molecule_selfie = sf.encoder(smiles_benzene)
+
+        # Intitialising smiles batch for parallel evaluation
+        self.smiles_batch = []
 
         # Initialize Step
         self.t = 0
@@ -88,10 +94,10 @@ class selfies_docking_env(object):
 
     def label_selfies(self, molecule_selfie):
         return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='label'), dtype=np.uint8).flatten()
-  
+    
     def reset(self):
         # Initialize selfie string
-        self.molecule_selfie = self.selfies_benzene
+        self.molecule_selfie = self.init_molecule_selfie
 
         # Initialize Step
         self.t = 0
@@ -123,45 +129,27 @@ class selfies_docking_env(object):
         
         if done:
             molecule_smiles = sf.decoder(self.molecule_selfie)
-            reward = np.clip(-self.predictor.predict([molecule_smiles])[0], a_min=0.0, a_max=None)
-            
-            info["episode_logs"]['docking_score'] = -reward
-            info["episode"]["r"] = reward
+            self.smiles_batch.append(molecule_smiles)
+            reward = None
             info["episode"]["l"] = self.t
             info['smiles'] = molecule_smiles
         else:
             reward = 0
         return self.enc_selifes_fn(self.molecule_selfie), reward, done, info
+    
+    def reset_smiles_batch(self):
+        # Intitialising smiles batch for parallel evaluation
+        self.smiles_batch = []
+
+    def get_reward_batch(self):
+        info = defaultdict(dict)
+        docking_scores = self.predictor.predict(self.smiles_batch)
+        reward_batch = np.clip(-np.array(docking_scores), a_min=0.0, a_max=None)
+        info['smiles'] = self.smiles_batch
+        info['docking_scores'] = docking_scores
+        return reward_batch, info
 
 if __name__ == '__main__':
-    # from dataclasses import dataclass
-
-    # @dataclass
-    # class cfg:
-    #     target = 'fa7'
-    #     selfies_enc_type = 'label'
-    #     max_selfie_length = 40
-
-    #     vina_program = 'qvina2'
-    #     temp_dir = 'tmp'
-    #     exhaustiveness = 1
-    #     num_sub_proc = 1
-    #     num_cpu_dock = 1
-    #     num_modes = 10
-    #     timeout_gen3d = 30
-    #     timeout_dock = 100
-
-    # env = selfies_docking_env(cfg)
-    # smiles_list = []
-    # for i in range(25):
-    #     state = env.reset()
-    #     done = False
-    #     while not done:
-    #         action = np.random.randint(env.action_space_length)
-    #         state, reward, done, info = env.step(action)
-    #     print(info['smiles'])
-    #     print(reward)
-
     import time
     start = time.time()
     target = 'fa7'

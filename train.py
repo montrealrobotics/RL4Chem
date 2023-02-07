@@ -11,13 +11,10 @@ from pathlib import Path
 from omegaconf import DictConfig
 
 def make_agent(env, device, cfg):    
-    if cfg.id in ['selfies', 'selfies_docking']:
-        obs_dims = np.prod(env.observation_shape)
-        num_actions = env.num_actions
-        obs_dtype = np.uint8
-        action_dtype = np.int32
-    else:
-        raise NotImplementedError
+    obs_dims = np.prod(env.observation_shape)
+    num_actions = env.num_actions
+    obs_dtype = env.observation_dtype
+    action_dtype = np.int32
 
     env_buffer_size = min(cfg.env_buffer_size, cfg.num_train_steps)
 
@@ -28,18 +25,13 @@ def make_agent(env, device, cfg):
                         cfg.hidden_dims, cfg.wandb_log, cfg.log_interval)
     else:
         raise NotImplementedError
-    
     return agent
 
 def make_env(cfg):
     print(cfg.id)
-    if cfg.id == 'selfies':
-        from notebooks.env import selfies_env
-        return selfies_env(cfg.max_selfie_length, cfg.max_selfie_length, target=cfg.target), selfies_env(cfg.max_selfie_length, cfg.max_selfie_length, target=cfg.target)
-    
-    elif cfg.id == 'selfies_docking':
-        from docking_env import selfies_docking_env
-        return selfies_docking_env(cfg), selfies_docking_env(cfg)
+    if cfg.id == 'docking':
+        from env import docking_env
+        return docking_env(cfg), docking_env(cfg)
     else:
         raise NotImplementedError
 
@@ -67,26 +59,44 @@ class Workspace:
         torch.cuda.manual_seed_all(self.cfg.seed)
 
     def _explore(self):
+        explore_start_time = time.time()
         print('random exploration begins')
         state, done = self.train_env.reset(), False
+        self.train_env.reset_smiles_batch()
         explore_episode = 0
-        for _ in range(1, self.cfg.explore_steps):
-            
+        
+        final_states = np.empty((self.cfg.explore_molecules, self.train_env.observation_shape[0]), dtype=self.train_env.observation_dtype)
+        final_next_states = np.empty((self.cfg.explore_molecules, self.train_env.observation_shape[0]), dtype=self.train_env.observation_dtype)
+        final_actions = np.empty((self.cfg.explore_molecules, 1), dtype=self.train_env.action_dtype)
+        final_rewards = np.zeros((self.cfg.explore_molecules,), dtype=np.float32)
+        final_dones = np.zeros((self.cfg.explore_molecules,), dtype=bool)
+
+        while explore_episode < self.cfg.explore_molecules: 
             action = np.random.randint(self.train_env.num_actions)
             next_state, reward, done, info = self.train_env.step(action)
             
-            self.agent.env_buffer.push((state, action, reward, next_state, False if info.get("TimeLimit.truncated", False) else done))
             if done:
+                final_states[explore_episode] = state 
+                final_next_states[explore_episode] = next_state
+                final_actions[explore_episode] = action
+                final_dones[explore_episode] = done
                 explore_episode += 1
                 state, done = self.train_env.reset(), False
             else:
+                self.agent.env_buffer.push((state, action, reward, next_state, False if info.get("TimeLimit.truncated", False) else done))
                 state = next_state
-        print('random exploration complete')
-
+        
+        final_rewards, _ = self.train_env.get_reward_batch()
+        self.train_env.reset_smiles_batch()
+        assert (final_dones==1).all()
+        self.agent.env_buffer.push_batch((final_states, final_actions, final_rewards, final_next_states, final_dones), self.cfg.explore_molecules)
+        
+        print('random exploration is completed in ', time.time() - explore_start_time, 'seconds.')
+        
     def train(self):
         self._explore()
         self._eval()
-        
+        exit()
         state, done, episode_start_time = self.train_env.reset(), False, time.time()
         
         for _ in range(1, self.cfg.num_train_steps-self.cfg.explore_steps+1):
@@ -127,8 +137,8 @@ class Workspace:
                 state = next_state
                 
     def _eval(self):
-        returns = 0 
         steps = 0
+        self.eval_env.reset_smiles_batch()
         for _ in range(self.cfg.num_eval_episodes):
             done = False 
             state = self.eval_env.reset()
@@ -137,18 +147,19 @@ class Workspace:
                 next_state, _, done ,info = self.eval_env.step(action)
                 state = next_state
                 
-            returns += info["episode"]["r"]
             steps += info["episode"]["l"]
-            
+
+        final_rewards, _ = self.eval_env.get_reward_batch()
+        self.eval_env.reset_smiles_batch()
         eval_metrics = dict()
-        eval_metrics['eval_episodic_return'] = returns/self.cfg.num_eval_episodes
+        eval_metrics['eval_episodic_return'] = sum(final_rewards)/self.cfg.num_eval_episodes
         eval_metrics['eval_episodic_length'] = steps/self.cfg.num_eval_episodes
 
         print("Episode: {}, total numsteps: {}, average Evaluation return: {}".format(self._train_episode, self._train_step, round(eval_metrics['eval_episodic_return'], 2)))
 
-        if self.cfg.save_snapshot and returns/self.cfg.num_eval_episodes >= self._best_eval_returns:
+        if self.cfg.save_snapshot and sum(final_rewards)/self.cfg.num_eval_episodes >= self._best_eval_returns:
             self.save_snapshot(best=True)
-            self._best_eval_returns = returns/self.cfg.num_eval_episodes
+            self._best_eval_returns = sum(final_rewards)/self.cfg.num_eval_episodes
 
         if self.cfg.wandb_log:
             wandb.log(eval_metrics, step = self._train_step)
@@ -163,14 +174,13 @@ class Workspace:
 
 @hydra.main(config_path='cfgs', config_name='config', version_base=None)
 def main(cfg: DictConfig):
-    if cfg.shape:
-        raise NotImplementedError
-    else:
-        from train import Workspace as W
-        
+
+    from train import Workspace as W
+    hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
+
     if cfg.wandb_log:
-        project_name = 'rd4chem'
-        with wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg)):
+        project_name = 'rl4chem'
+        with wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir']):
             wandb.run.name = cfg.wandb_run_name
             workspace = W(cfg)
             workspace.train()

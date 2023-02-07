@@ -26,6 +26,7 @@ dockstring/
 openbabel.git
 
 #local experiments
+store_room/
 local_exp/
 wandb/
 tmp/

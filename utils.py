@@ -28,9 +28,9 @@ class ReplayMemory():
         self.idx = (self.idx + 1) % self.buffer_limit
         self.full = self.full or self.idx == 0
     
-    def push_sequence(self, transitions, L):
+    def push_batch(self, transitions, N):
         states, actions, rewards, next_states, dones = transitions
-        idxs = np.arange(self.idx, self.idx + L) % self.buffer_limit
+        idxs = np.arange(self.idx, self.idx + N) % self.buffer_limit
         self.observation[idxs] = states
         self.next_observation[idxs] = next_states
         self.action[idxs] = actions 

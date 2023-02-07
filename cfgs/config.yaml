@@ -1,20 +1,18 @@
 agent: 'sac'
 
 #common
-id: 'selfies_docking'
+id: 'docking'
 device: 'cuda'
 seed: 1
 
-#selfie environment specific
+#environment specific
 target: 'fa7'
 selfies_enc_type: 'one_hot'
 max_selfie_length: 40
-
-#docking
 vina_program: 'qvina2'
 temp_dir: 'tmp'
 exhaustiveness: 1
-num_sub_proc: 1
+num_sub_proc: 12
 num_cpu_dock: 1
 num_modes: 10
 timeout_gen3d: 30
@@ -24,6 +22,7 @@ timeout_dock: 100
 num_train_steps: 1000000
 env_buffer_size: 100000
 explore_steps: 10000
+explore_molecules: 250
 batch_size: 256
 obs_dtype:
 action_dtype:
