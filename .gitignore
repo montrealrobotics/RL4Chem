@@ -16,10 +16,13 @@ saved/
 env_rl4chem/
 
 #notebooks
-notebooks/
+.ipynb_checkpoints/
+store_notebooks/
 
 #datasets
 datasets/
+filtered_data/
+raw_data/
 
 #package dependencies
 dockstring/
