@@ -105,8 +105,10 @@ class SacAgent:
 
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = buffer.sample(self.batch_size)
 
-        state_batch = self.aug(torch.FloatTensor(state_batch).to(self.device))
-        next_state_batch = self.aug(torch.FloatTensor(next_state_batch).to(self.device))
+        # state_batch = self.aug(torch.FloatTensor(state_batch).to(self.device))
+        # next_state_batch = self.aug(torch.FloatTensor(next_state_batch).to(self.device))
+        state_batch = torch.FloatTensor(state_batch).to(self.device)
+        next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
         action_batch = torch.FloatTensor(action_batch).to(self.device)
         reward_batch = torch.FloatTensor(reward_batch).to(self.device)
         done_batch = torch.FloatTensor(done_batch).to(self.device)  

@@ -22,6 +22,7 @@ store_notebooks/
 #datasets
 datasets/
 filtered_data/
+docked_data/
 raw_data/
 
 #package dependencies

@@ -167,11 +167,11 @@ if __name__ == '__main__':
     class args():
         target= 'fa7'
         selfies_enc_type= 'one_hot'
-        max_selfie_length= 9
+        max_selfie_length= 10
         vina_program= 'qvina2'
         temp_dir= 'tmp'
         exhaustiveness= 1
-        num_sub_proc= 12
+        num_sub_proc= 24
         num_cpu_dock= 1
         num_modes= 10
         timeout_gen3d= 30
@@ -179,5 +179,28 @@ if __name__ == '__main__':
 
     env = docking_env(args)
     possible_states = []
-    actions =  env.action_space
-    print(env.reset())
+    for a1 in range(env.num_actions):
+        for a2 in range(env.num_actions):
+            env.reset()
+            env.step(a1)
+            env.step(a2)
+    
+        reward_batch, reward_info = env.get_reward_batch()
+        print(np.argmax(reward_batch), np.max(reward_batch))
+        print(reward_info['smiles'][np.argmax(reward_batch)])
+
+'''
+ENV stats
+=======================================
+Max len = 9
+best_smiles = C1=CC=CC=C1N
+best_reward = 5.0
+=======================================
+
+=======================================
+Max len = 10
+best_smiles = C1=CC=CC=C1[N+1]=N, C1=CC=CC=C1N=N, C1=CC=CC=C1[O+1]=N ...
+best_reward = 5.6
+=======================================
+
+'''

@@ -83,9 +83,8 @@ if __name__ == "__main__":
             if i%50000 == 0:
                 #saving docked values in csv file
                 zinc_df[target] = docking_scores                
-                zinc_df.to_csv('docked_data/chembl_selfies_docked_.csv')
+                zinc_df.to_csv('docked_data/zinc250_selfies_docked_.csv')
 
         #saving docked values in csv file
         zinc_df.insert(0, target, docking_scores, allow_duplicates=False)
-        Path("docked_data/").mkdir(parents=True, exist_ok=True)
         zinc_df.to_csv('docked_data/zinc250_selfies_docked_.csv')

@@ -87,6 +87,7 @@ class Workspace:
         self.env_buffer.push_fresh_buffer(self.fresh_env_buffer)
         self.fresh_env_buffer.reset()
         print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', len(set(self.current_reward_info['selfies'])), ' Evaluation time = ', reward_eval_time)
+        print(np.sort(self.current_reward_batch))
 
     def train(self):
         self._eval()
@@ -135,6 +136,8 @@ class Workspace:
                 unique_strings = len(set(self.current_reward_info['selfies']))
                 print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', unique_strings, ' Evaluation time = ', reward_eval_time)
                 print(np.sort(self.current_reward_batch))
+                best_idx = np.argmax(self.current_reward_batch)
+                print(self.current_reward_info['smiles'][best_idx])
                 
                 if self.cfg.wandb_log:
                     wandb.log({'reward_eval_time' : reward_eval_time, 
