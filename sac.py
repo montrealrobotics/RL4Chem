@@ -7,6 +7,16 @@ import wandb
 
 import utils
 
+class NoiseAug(nn.Module):
+    def __init__(self, noise=0.95):
+        super().__init__()
+        self.noise = noise
+
+    def forward(self, x):
+        n, w = x.size()
+        x = x + torch.rand((n, w), device=x.device)
+        return torch.clamp(x, max=1)
+
 class Actor(nn.Module):
     def __init__(self, input_dims, hidden_dims, output_dims, dist='categorical'):
         super(Actor, self).__init__()
@@ -25,29 +35,28 @@ class Actor(nn.Module):
             dist = td.OneHotCategoricalStraightThrough(logits=logits)
         else:
             raise NotImplementedError
-        return dist 
-    
+        return dist
+
 class Critic(nn.Module):
     def __init__(self, input_dims, hidden_dims, output_dims):
         super(Critic, self).__init__()
-
         self.Q1 = nn.Sequential(
-            nn.Linear(input_dims, hidden_dims),
-            nn.ReLU(), nn.Linear(hidden_dims, hidden_dims),
+            nn.Linear(input_dims, hidden_dims), 
+            nn.ReLU(), nn.Linear(hidden_dims, hidden_dims), nn.LayerNorm(hidden_dims),
             nn.ReLU(), nn.Linear(hidden_dims, output_dims))
 
         self.Q2 = nn.Sequential(
-            nn.Linear(input_dims, hidden_dims),
-            nn.ReLU(), nn.Linear(hidden_dims, hidden_dims),
+            nn.Linear(input_dims, hidden_dims), 
+            nn.ReLU(), nn.Linear(hidden_dims, hidden_dims), nn.LayerNorm(hidden_dims),
             nn.ReLU(), nn.Linear(hidden_dims, output_dims))
 
     def forward(self, x):
         q1 = self.Q1(x)
         q2 = self.Q2(x)
-        return q1, q2       
+        return q1, q2      
 
 class SacAgent:
-    def __init__(self, device, obs_dims, num_actions, obs_dtype, action_dtype, env_buffer_size,
+    def __init__(self, device, obs_dims, num_actions,
                 gamma, tau, policy_update_interval, target_update_interval, lr, batch_size, 
                 entropy_coefficient, hidden_dims, wandb_log, log_interval):
         '''To-do:
@@ -64,6 +73,7 @@ class SacAgent:
         self.policy_update_interval = policy_update_interval
         self.target_update_interval = target_update_interval
         self.batch_size = batch_size
+        self.aug = NoiseAug()
 
         #exploration
         self.entropy_coefficient = entropy_coefficient
@@ -73,7 +83,6 @@ class SacAgent:
         self.wandb_log = wandb_log
         self.log_interval = log_interval
 
-        self.env_buffer = utils.ReplayMemory(env_buffer_size, obs_dims, obs_dtype, action_dtype)
         self._init_networks(obs_dims, num_actions, hidden_dims)
         self._init_optims(lr)
     
@@ -87,16 +96,17 @@ class SacAgent:
                 
         return action.cpu().numpy()
     
-    def update(self, step):
+    def update(self, buffer, step):
         metrics = dict()
         if step % self.log_interval == 0 and self.wandb_log:
             log = True 
         else:
             log = False 
 
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.env_buffer.sample(self.batch_size)
-        state_batch = torch.FloatTensor(state_batch).to(self.device)
-        next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
+        state_batch, action_batch, reward_batch, next_state_batch, done_batch = buffer.sample(self.batch_size)
+
+        state_batch = self.aug(torch.FloatTensor(state_batch).to(self.device))
+        next_state_batch = self.aug(torch.FloatTensor(next_state_batch).to(self.device))
         action_batch = torch.FloatTensor(action_batch).to(self.device)
         reward_batch = torch.FloatTensor(reward_batch).to(self.device)
         done_batch = torch.FloatTensor(done_batch).to(self.device)  
@@ -129,9 +139,8 @@ class SacAgent:
         Q1, Q2 = self.critic(state_batch)
         Q1 = Q1.gather(1, action_batch.long()).flatten()
         Q2 = Q2.gather(1, action_batch.long()).flatten()
-
+        
         critic_loss = (F.mse_loss(Q1, target_Q) + F.mse_loss(Q2, target_Q))/2   
-
         self.critic_opt.zero_grad()
         critic_loss.backward()
         self.critic_opt.step()

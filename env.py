@@ -16,9 +16,6 @@ class docking_env(object):
         # Set maximum selfies length
         self.max_selfies_length = cfg.max_selfie_length
 
-        # Set episode length
-        self.episode_length = cfg.max_selfie_length
-
         # Set target property
         self.target = cfg.target
         self.docking_config = dict()
@@ -64,10 +61,9 @@ class docking_env(object):
         self.action_space_length = len(self.action_space)
         self.num_actions = self.action_space_length
         self.action_dtype = np.uint8
-
-        # Define observation space
         assert self.alphabet_length == self.action_space_length    
 
+        # Define observation space
         self.selfies_enc_type = cfg.selfies_enc_type
         if cfg.selfies_enc_type == 'one_hot':
             self.observation_shape = (self.max_selfies_length*self.alphabet_length,)
@@ -78,14 +74,20 @@ class docking_env(object):
             self.enc_selifes_fn = self.label_selfies
         else:
             raise NotImplementedError
+        assert cfg.selfies_enc_type == 'one_hot'
 
         # Initialize selfie string as benzene
         smiles_benzene = "c1ccccc1"
         self.init_molecule_selfie = sf.encoder(smiles_benzene)
+        self.init_molecule_selfie_len = sf.len_selfies(self.init_molecule_selfie)
+
+        # Set episode length
+        self.episode_length = cfg.max_selfie_length - self.init_molecule_selfie_len
 
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
         self.selfies_batch = []
+        self.len_selfies_batch = []
 
         # Initialize Step
         self.t = 0
@@ -117,7 +119,8 @@ class docking_env(object):
         self.t += 1
 
         if new_molecule_len > self.max_selfies_length:
-            done = True 
+            done = True
+            print('this should not happen if your action space does not have deterministic options.')
         elif new_molecule_len == self.max_selfies_length:
             done = True
             self.molecule_selfie = new_molecule_selfie
@@ -131,17 +134,20 @@ class docking_env(object):
         if done:
             molecule_smiles = sf.decoder(self.molecule_selfie)
             self.smiles_batch.append(molecule_smiles)
-            self.selfies_batch.append(self.molecule_selfie)
+            pretty_selfies = sf.encoder(molecule_smiles)
+            self.selfies_batch.append(pretty_selfies)
+            self.selfies_batch.append(sf.len_selfies(pretty_selfies))
             info["episode"]["l"] = self.t
-            reward = None
+            reward = -1000
         else:
             reward = 0
         return self.enc_selifes_fn(self.molecule_selfie), reward, done, info
     
-    def reset_smiles_batch(self):
+    def _reset_store_batch(self):
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
         self.selfies_batch = []
+        self.len_selfies_batch = []
 
     def get_reward_batch(self):
         info = defaultdict(dict)
@@ -149,7 +155,9 @@ class docking_env(object):
         reward_batch = np.clip(-np.array(docking_scores), a_min=0.0, a_max=None)
         info['smiles'] = self.smiles_batch
         info['selfies'] = self.selfies_batch
+        info['len_selfies'] = self.len_selfies_batch
         info['docking_scores'] = docking_scores
+        self._reset_store_batch()
         return reward_batch, info
 
 if __name__ == '__main__':
