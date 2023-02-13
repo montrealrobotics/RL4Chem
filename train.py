@@ -108,12 +108,6 @@ class Workspace:
         self._reset_final_data()
         assert self._train_episode == 0
 
-        # if self.cfg.wandb_log:
-        #     wandb.define_metric("episode")
-        #     wandb.define_metric("episodic_length", step_metric="episode")
-        #     wandb.define_metric("episodic_reward", step_metric="episode")
-        #     wandb.define_metric("episodic_sps", step_metric="episode")
-
         state, done, episode_start_time = self.train_env.reset(), False, time.time()
         for _ in range(1, self.cfg.num_train_steps-self.cfg.explore_steps+1):
             action = self.agent.get_action(state, self._train_step)
@@ -140,8 +134,6 @@ class Workspace:
                 reward_eval_time = time.time() - reward_start_time
 
                 print('Total strings = ', len(reward_info['selfies']), 'Unique strings = ', len(set(reward_info['selfies'])), ' Evaluation time = ', reward_eval_time)
-
-                print(self.final_rewards)
                 print(np.sort(self.final_rewards))
                 
                 self.agent.env_buffer.push_batch((self.final_states, self.final_actions, self.final_rewards, self.final_next_states, self.final_dones), self.cfg.parallel_molecules)
@@ -149,7 +141,6 @@ class Workspace:
 
                 if self.cfg.wandb_log:
                     wandb.log({'reward_eval_time' : reward_eval_time}, step = self._train_step)
-                exit()
 
             self.agent.update(self._train_step)
 
