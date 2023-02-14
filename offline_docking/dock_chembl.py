@@ -80,11 +80,11 @@ if __name__ == "__main__":
                         
             print("Total molecules docked: {}, average evaluation time: {}".format(i, reward_eval_time))
 
-            if i%100000 == 0:
+            if i%50000 == 0:
                 #saving docked values in csv file
-                chembl_df[target] = docking_scores                
+                chembl_df[target] = docking_scores
                 chembl_df.to_csv('docked_data/chembl_selfies_docked_.csv')
 
         #saving docked values in csv file
-        chembl_df.insert(0, target, docking_scores, allow_duplicates=False)
+        chembl_df[target] = docking_scores
         chembl_df.to_csv('docked_data/chembl_selfies_docked_.csv')

@@ -86,5 +86,5 @@ if __name__ == "__main__":
                 zinc_df.to_csv('docked_data/zinc250_selfies_docked_.csv')
 
         #saving docked values in csv file
-        zinc_df.insert(0, target, docking_scores, allow_duplicates=False)
+        zinc_df[target] = docking_scores
         zinc_df.to_csv('docked_data/zinc250_selfies_docked_.csv')
