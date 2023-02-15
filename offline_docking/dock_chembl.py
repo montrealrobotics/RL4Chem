@@ -83,8 +83,8 @@ if __name__ == "__main__":
             if i%50000 == 0:
                 #saving docked values in csv file
                 chembl_df[target] = docking_scores
-                chembl_df.to_csv('docked_data/chembl_selfies_docked_.csv')
+                chembl_df.to_csv('docked_data/chembl_selfies_docked_.csv', index=False)
 
         #saving docked values in csv file
         chembl_df[target] = docking_scores
-        chembl_df.to_csv('docked_data/chembl_selfies_docked_.csv')
+        chembl_df.to_csv('docked_data/chembl_selfies_docked_.csv', index=False)
