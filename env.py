@@ -72,9 +72,9 @@ class docking_env(object):
         elif cfg.selfies_enc_type == 'label':
             self.observation_shape = (self.max_selfies_length,)
             self.enc_selifes_fn = self.label_selfies
+            self.observation_dtype = np.uint8 
         else:
             raise NotImplementedError
-        assert cfg.selfies_enc_type == 'one_hot'
 
         # Initialize selfie string as benzene
         smiles_benzene = "c1ccccc1"
@@ -93,10 +93,10 @@ class docking_env(object):
         self.t = 0
 
     def onehot_selfies(self, molecule_selfie):
-        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='one_hot'), dtype=np.uint8).flatten()
+        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='one_hot'), dtype=self.observation_dtype).flatten()
 
     def label_selfies(self, molecule_selfie):
-        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='label'), dtype=np.uint8).flatten()
+        return np.array(sf.selfies_to_encoding(molecule_selfie, self.alphabet_to_idx, self.max_selfies_length, enc_type='label'), dtype=self.observation_dtype).flatten()
     
     def reset(self):
         # Initialize selfie string
