@@ -185,7 +185,7 @@ def main(cfg: DictConfig):
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
 
     if cfg.wandb_log:
-        project_name = 'rl4chem'
+        project_name = 'rl4chem_' + cfg.target
         with wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir']):
             wandb.run.name = cfg.wandb_run_name
             workspace = W(cfg)
