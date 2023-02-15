@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH -t 1:00:00
+#SBATCH -t 1:30:00
 #SBATCH -c 24
-#SBATCH --partition=real-lab
+#SBATCH --partition=lab-real
 #SBATCH --mem=4G
 #SBATCH --gres=gpu:1
 #SBATCH --array=1-3
