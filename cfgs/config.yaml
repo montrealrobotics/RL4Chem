@@ -7,7 +7,7 @@ seed: 1
 
 #environment specific
 target: 'fa7'
-selfies_enc_type: 'label'
+selfies_enc_type: 'one_hot'
 max_selfie_length: 25
 vina_program: 'qvina2'
 temp_dir: 'tmp'
