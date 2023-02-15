@@ -16,4 +16,5 @@ echo "activated conda environment"
 rsync -a $HOME/RL4Chem/ $SLURM_TMPDIR/RL4Chem
 echo "moved code to slurm tmpdir"
 
+cd $SLURM_TMPDIR/RL4Chem
 python train.py target=${array[SLURM_ARRAY_TASK_ID]} num_sub_proc=24 wandb_log=True wandb_run_name=max_len_25
