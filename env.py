@@ -121,9 +121,11 @@ class docking_env(object):
             done = True
                     
         if done:
-            pretty_selfies = sf.encoder(self.molecule_selfie)
+            molecule_smiles = sf.decoder(self.molecule_selfie)
+            pretty_selfies = sf.encoder(molecule_smiles)
+
+            self.smiles_batch.append(molecule_smiles)
             self.selfies_batch.append(pretty_selfies)
-            self.smiles_batch.append(sf.decoder(self.molecule_selfie))
             self.len_selfies_batch.append(sf.len_selfies(pretty_selfies))
             info["episode"]["l"] = self.t
             reward = -1000
