@@ -114,16 +114,18 @@ class docking_env(object):
 
         action_selfie = self.action_space[action]
         new_molecule_selfie = self.molecule_selfie + action_selfie
-        new_molecule_smile = sf.decoder(new_molecule_selfie)
-        self.molecule_selfie = sf.encoder(new_molecule_smile)
-            
+
         self.t += 1
-        done = False
         if self.t >= self.episode_length:
-            done = True 
-                    
+            done = True
+            molecule_smiles = sf.decoder(new_molecule_selfie)
+            self.molecule_selfie = sf.encoder(molecule_smiles)
+        else:
+            done = False
+            self.molecule_selfie = new_molecule_selfie
+        
         if done:
-            self.smiles_batch.append(new_molecule_smile)
+            self.smiles_batch.append(molecule_smiles)
             self.selfies_batch.append(self.molecule_selfie)
             self.len_selfies_batch.append(sf.len_selfies(self.molecule_selfie))
             info["episode"]["l"] = self.t
