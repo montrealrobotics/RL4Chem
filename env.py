@@ -113,21 +113,18 @@ class docking_env(object):
         info = defaultdict(dict)
 
         action_selfie = self.action_space[action]
-        new_molecule_selfie = self.molecule_selfie + action_selfie
+        self.molecule_selfie = self.molecule_selfie + action_selfie
 
         self.t += 1
+        done = False
         if self.t >= self.episode_length:
             done = True
-            molecule_smiles = sf.decoder(new_molecule_selfie)
-            self.molecule_selfie = sf.encoder(molecule_smiles)
-        else:
-            done = False
-            self.molecule_selfie = new_molecule_selfie
-        
+                    
         if done:
-            self.smiles_batch.append(molecule_smiles)
-            self.selfies_batch.append(self.molecule_selfie)
-            self.len_selfies_batch.append(sf.len_selfies(self.molecule_selfie))
+            pretty_selfies = sf.encoder(self.molecule_selfie)
+            self.selfies_batch.append(pretty_selfies)
+            self.smiles_batch.append(sf.decoder(self.molecule_selfie))
+            self.len_selfies_batch.append(sf.len_selfies(pretty_selfies))
             info["episode"]["l"] = self.t
             reward = -1000
         else:
