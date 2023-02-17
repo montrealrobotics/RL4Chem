@@ -114,30 +114,18 @@ class docking_env(object):
 
         action_selfie = self.action_space[action]
         new_molecule_selfie = self.molecule_selfie + action_selfie
-        new_molecule_len = sf.len_selfies(new_molecule_selfie)
-
+        new_molecule_smile = sf.decoder(new_molecule_selfie)
+        self.molecule_selfie = sf.encoder(new_molecule_smile)
+            
         self.t += 1
-
-        if new_molecule_len > self.max_selfies_length:
-            done = True
-            print('this should not happen if your action space does not have deterministic options.')
-        elif new_molecule_len == self.max_selfies_length:
-            done = True
-            self.molecule_selfie = new_molecule_selfie
-        else:
-            done = False
-            self.molecule_selfie = new_molecule_selfie
-
-        if not done and self.t >= self.episode_length:
-            done = True
-        
+        done = False
+        if self.t >= self.episode_length:
+            done = True 
+                    
         if done:
-            molecule_smiles = sf.decoder(self.molecule_selfie)
-            self.smiles_batch.append(molecule_smiles)
-            pretty_selfies = sf.encoder(molecule_smiles)
-            self.selfies_batch.append(pretty_selfies)
-            self.len_selfies_batch.append(sf.len_selfies(pretty_selfies))
-            self.molecule_selfie = pretty_selfies
+            self.smiles_batch.append(new_molecule_smile)
+            self.selfies_batch.append(self.molecule_selfie)
+            self.len_selfies_batch.append(sf.len_selfies(self.molecule_selfie))
             info["episode"]["l"] = self.t
             reward = -1000
         else:
@@ -167,8 +155,8 @@ if __name__ == '__main__':
     @dataclass
     class args():
         target= 'fa7'
-        selfies_enc_type= 'one_hot'
-        max_selfie_length= 10
+        selfies_enc_type= 'label'
+        max_selfie_length= 15
         vina_program= 'qvina2'
         temp_dir= 'tmp'
         exhaustiveness= 1
@@ -179,16 +167,31 @@ if __name__ == '__main__':
         timeout_dock= 100
 
     env = docking_env(args)
-    possible_states = []
-    for a1 in range(env.num_actions):
-        for a2 in range(env.num_actions):
-            env.reset()
-            env.step(a1)
-            env.step(a2)
+    state = env.reset()
+    done = False 
+    next_state, reward, done, info = env.step(15)
+    print(env.action_space[15])
+    print(next_state)
+    print(env.molecule_selfie)
+    # print(state)
+    # while not done:
+    #     action = np.random.randint(env.num_actions)
+    #     next_state, reward, done, info = env.step(action)
+    #     print(action)
+    #     print(env.alphabet_to_idx[env.action_space[action]])
+    #     print(next_state)
+    #     print('\n')
+
+    # possible_states = []
+    # for a1 in range(env.num_actions):
+    #     for a2 in range(env.num_actions):
+    #         env.reset()
+    #         env.step(a1)
+    #         env.step(a2)
     
-        reward_batch, reward_info = env.get_reward_batch()
-        print(np.argmax(reward_batch), np.max(reward_batch))
-        print(reward_info['smiles'][np.argmax(reward_batch)])
+    #     reward_batch, reward_info = env.get_reward_batch()
+    #     print(np.argmax(reward_batch), np.max(reward_batch))
+    #     print(reward_info['smiles'][np.argmax(reward_batch)])
 
 '''
 ENV stats
