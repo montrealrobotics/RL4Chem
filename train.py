@@ -14,6 +14,8 @@ from omegaconf import DictConfig
 def make_agent(env, device, cfg):    
     obs_dims = np.prod(env.observation_shape)
     num_actions = env.num_actions
+    vocab_size = env.alphabet_length
+    padding_id = env.alphabet_to_idx['[nop]']
     obs_dtype = env.observation_dtype
     action_dtype = np.int32
 
@@ -24,9 +26,9 @@ def make_agent(env, device, cfg):
 
     if cfg.agent == 'sac':
         from sac import SacAgent
-        agent = SacAgent(device, obs_dims, num_actions, cfg.gamma, cfg.tau,
+        agent = SacAgent(device, obs_dims, num_actions, vocab_size, padding_id, cfg.gamma, cfg.tau,
                         cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.entropy_coefficient,
-                        cfg.hidden_dims, cfg.wandb_log, cfg.agent_log_interval)
+                        cfg.latent_dims, cfg.hidden_dims, cfg.wandb_log, cfg.agent_log_interval)
     else:
         raise NotImplementedError
     return agent, env_buffer, fresh_env_buffer

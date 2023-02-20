@@ -157,7 +157,7 @@ if __name__ == '__main__':
     class args():
         target= 'fa7'
         selfies_enc_type= 'label'
-        max_selfie_length= 15
+        max_selfie_length= 40
         vina_program= 'qvina2'
         temp_dir= 'tmp'
         exhaustiveness= 1
@@ -170,10 +170,16 @@ if __name__ == '__main__':
     env = docking_env(args)
     state = env.reset()
     done = False 
-    next_state, reward, done, info = env.step(15)
-    print(env.action_space[15])
-    print(next_state)
-    print(env.molecule_selfie)
+    while not done:
+        action = np.random.randint(env.num_actions)
+        next_state, reward, done, info = env.step(action)
+        print(next_state)
+        print('\n')
+
+    # next_state, reward, done, info = env.step(15)
+    # print(env.action_space[15])
+    # print(next_state)
+    # print(env.molecule_selfie)
     # print(state)
     # while not done:
     #     action = np.random.randint(env.num_actions)
