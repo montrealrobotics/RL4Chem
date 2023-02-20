@@ -18,20 +18,23 @@ class NoiseAug(nn.Module):
         return torch.clamp(x, max=1)
 
 class Encoder(nn.Module):
-    def __init__(self, vocab_size, padding_id):
+    def __init__(self, vocab_size, padding_id, device):
         super(Encoder, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, 64, padding_idx=padding_id)
-        self.convnet = nn.Sequential(nn.Conv1d(64, 32, kernel_size=9),
+
+        # self.embedding = nn.Embedding(vocab_size, 64, padding_idx=padding_id)
+        self.embedding = nn.Embedding.from_pretrained(torch.eye(vocab_size, device=device), padding_idx=padding_id)
+
+        self.convnet = nn.Sequential(nn.Conv1d(vocab_size, 32, kernel_size=9),
                                      nn.ReLU(), nn.Conv1d(32, 32, kernel_size=9),
                                      nn.ReLU(), nn.Conv1d(32, 32, kernel_size=9),
                                      nn.ReLU())
         self.apply(utils.weight_init)
 
     def forward(self, x):
-        x = self.embedding(x).view(-1, 64, 25)
+        x = self.embedding(x).view(-1, 70, 25)
         x = self.convnet(x)
         x = x.view(x.shape[0], -1)
-        return x 
+        return x
 
 class Actor(nn.Module):
     def __init__(self, input_dims, hidden_dims, output_dims, dist='categorical'):
@@ -126,11 +129,11 @@ class SacAgent:
 
         # state_batch = self.aug(torch.FloatTensor(state_batch).to(self.device))
         # next_state_batch = self.aug(torch.FloatTensor(next_state_batch).to(self.device))
-        state_batch = torch.LongTensor(state_batch).to(self.device)
-        next_state_batch = torch.LongTensor(next_state_batch).to(self.device)
-        action_batch = torch.FloatTensor(action_batch).to(self.device)
-        reward_batch = torch.FloatTensor(reward_batch).to(self.device)
-        done_batch = torch.FloatTensor(done_batch).to(self.device)  
+        state_batch = torch.tensor(state_batch, dtype=torch.long, device=self.device)
+        next_state_batch = torch.tensor(next_state_batch, dtype=torch.long, device=self.device)
+        action_batch = torch.tensor(action_batch,  dtype=torch.float32, device=self.device)
+        reward_batch = torch.tensor(reward_batch, dtype=torch.float32, device=self.device)
+        done_batch = torch.tensor(done_batch, dtype=torch.float32, device=self.device)  
         discount_batch = self.gamma*(1-done_batch)
 
         #encode
@@ -210,7 +213,7 @@ class SacAgent:
             metrics['actor_entropy'] = action_entropy.detach().mean().item()
 
     def _init_networks(self, obs_dims, num_actions, vocab_size, padding_id, latent_dims, hidden_dims):
-        self.encoder = Encoder(vocab_size, padding_id).to(self.device)
+        self.encoder = Encoder(vocab_size, padding_id, self.device).to(self.device)
 
         self.actor = Actor(latent_dims, hidden_dims, num_actions).to(self.device)
 
