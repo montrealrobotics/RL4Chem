@@ -8,13 +8,13 @@ import wandb
 import utils
 
 class NoiseAug(nn.Module):
-    def __init__(self, noise=0.95):
+    def __init__(self, noise=0.5):
         super().__init__()
         self.noise = noise
 
     def forward(self, x):
-        n, w = x.size()
-        x = x + torch.rand((n, w), device=x.device)
+        n, w, h = x.size()
+        x = x + torch.rand((n, w, h), device=x.device)
         return torch.clamp(x, max=1)
 
 class Encoder(nn.Module):
@@ -29,9 +29,12 @@ class Encoder(nn.Module):
                                      nn.ReLU(), nn.Conv1d(32, 32, kernel_size=9),
                                      nn.ReLU())
         self.apply(utils.weight_init)
+        self.aug = NoiseAug()
 
-    def forward(self, x):
+    def forward(self, x, aug=True):
         x = self.embedding(x).view(-1, 70, 25)
+        if aug:
+            x = self.aug(x)
         x = self.convnet(x)
         x = x.view(x.shape[0], -1)
         return x
@@ -94,7 +97,6 @@ class SacAgent:
         self.policy_update_interval = policy_update_interval
         self.target_update_interval = target_update_interval
         self.batch_size = batch_size
-        self.aug = NoiseAug()
 
         #exploration
         self.entropy_coefficient = entropy_coefficient
@@ -110,7 +112,7 @@ class SacAgent:
     def get_action(self, obs, step, eval=False):
         with torch.no_grad():
             obs = torch.LongTensor(obs).to(self.device)
-            obs = self.encoder(obs) 
+            obs = self.encoder(obs, aug=False) 
             action_dist = self.actor(obs)    
             action = action_dist.sample()            
             if eval:
