@@ -21,7 +21,7 @@ class Actor(nn.Module):
     def __init__(self, input_dims, hidden_dims, output_dims, dist='categorical'):
         super(Actor, self).__init__()
         
-        self.action_dist = nn.Sequential(
+        self.actor = nn.Sequential(
             nn.Linear(input_dims, hidden_dims),
             nn.ReLU(), nn.Linear(hidden_dims, hidden_dims), nn.LayerNorm(hidden_dims),
             nn.ReLU(), nn.Linear(hidden_dims, output_dims),
@@ -29,9 +29,7 @@ class Actor(nn.Module):
         self.dist = dist
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        logits = self.fc3(x)
+        logits = self.actor(x)
         if self.dist == 'categorical':
             dist = td.Categorical(logits=logits)
         elif self.dist == 'one_hot_categorical':
