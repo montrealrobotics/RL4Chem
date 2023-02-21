@@ -51,6 +51,7 @@ class Workspace:
         self.device = torch.device(cfg.device)
         self.train_env, self.eval_env = make_env(self.cfg)
         self.agent, self.env_buffer, self.fresh_env_buffer = make_agent(self.train_env, self.device, self.cfg)
+        self.unique_molecules = set()
         self.current_reward_batch = np.zeros((cfg.parallel_molecules,), dtype=np.float32)
         self.current_reward_info = dict()
         self._train_step = 0
@@ -88,6 +89,7 @@ class Workspace:
         self.fresh_env_buffer.reset()
         print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', len(set(self.current_reward_info['selfies'])), ' Evaluation time = ', reward_eval_time)
         print(np.sort(self.current_reward_batch))
+        self.unique_molecules.update(self.current_reward_info['smiles'])
 
     def train(self):
         self._eval()
@@ -135,13 +137,15 @@ class Workspace:
 
                 unique_strings = len(set(self.current_reward_info['selfies']))
                 print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', unique_strings, ' Evaluation time = ', reward_eval_time)
+                self.unique_molecules.update(self.current_reward_info['smiles'])
                 print(np.sort(self.current_reward_batch))
                 best_idx = np.argmax(self.current_reward_batch)
                 print(self.current_reward_info['smiles'][best_idx])
                 
                 if self.cfg.wandb_log:
                     wandb.log({'reward_eval_time' : reward_eval_time, 
-                                'unique strings': unique_strings}, step = self._train_step)
+                               'unique strings': unique_strings,
+                               'cummulative unique strings' : len(self.unique_molecules)}, step = self._train_step)
                 parallel_counter = 0
                 
     def _eval(self):
