@@ -136,7 +136,7 @@ class Workspace:
                 self.fresh_env_buffer.reset()
 
                 unique_strings = len(set(self.current_reward_info['selfies']))
-                print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', unique_strings, ' Evaluation time = ', reward_eval_time)
+                print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', unique_strings, 'Cummulative unique strings = ', len(self.unique_molecules), ' Evaluation time = ', reward_eval_time)
                 self.unique_molecules.update(self.current_reward_info['smiles'])
                 print(np.sort(self.current_reward_batch))
                 best_idx = np.argmax(self.current_reward_batch)
