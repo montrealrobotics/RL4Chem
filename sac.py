@@ -20,9 +20,12 @@ class NoiseAug(nn.Module):
 class Actor(nn.Module):
     def __init__(self, input_dims, hidden_dims, output_dims, dist='categorical'):
         super(Actor, self).__init__()
-        self.fc1 = nn.Linear(input_dims, hidden_dims) 
-        self.fc2 = nn.Linear(hidden_dims, hidden_dims)
-        self.fc3 = nn.Linear(hidden_dims, output_dims)
+        
+        self.action_dist = nn.Sequential(
+            nn.Linear(input_dims, hidden_dims),
+            nn.ReLU(), nn.Linear(hidden_dims, hidden_dims), nn.LayerNorm(hidden_dims),
+            nn.ReLU(), nn.Linear(hidden_dims, output_dims),
+        )
         self.dist = dist
 
     def forward(self, x):
