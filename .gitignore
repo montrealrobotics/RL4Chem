@@ -24,6 +24,7 @@ datasets/
 filtered_data/
 docked_data/
 raw_data/
+data/
 
 #package dependencies
 dockstring/
