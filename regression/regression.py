@@ -1,198 +1,104 @@
-import re
+import hydra
+import wandb
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-import numpy as np
-import pandas as pd
-import selfies as sf
-from pathlib import Path
-from models import CharRNN
+import sklearn.metrics
+from omegaconf import DictConfig
+from data import get_data
 
-def get_dataset(data_path='data/filtered_dockstring-dataset.tsv', splits_path='data/filtered_cluster_split.tsv', target='ESR2', string_rep='SMILES'):
-    assert target in ['ESR2', 'F2', 'KIT', 'PARP1', 'PGR']
-    dockstring_df = pd.read_csv(data_path)
-    dockstring_splits = pd.read_csv(splits_path)
+class Averager():
+    def __init__(self):
+        self.n = 0
+        self.v = 0
 
-    bond_constraints = sf.get_semantic_constraints()
-    bond_constraints['I'] = 5
-    sf.set_semantic_constraints(bond_constraints)
+    def add(self, x):
+        self.v = (self.v * self.n + x) / (self.n + 1)
+        self.n += 1
 
-    assert np.all(dockstring_splits.smiles == dockstring_df.smiles)
-    assert sf.get_semantic_constraints()['I'] == 5
+    def item(self):
+        return self.v
 
-    df_train = dockstring_df[dockstring_splits["split"] == "train"].dropna(subset=[target])
-    df_test = dockstring_df[dockstring_splits["split"] == "test"].dropna(subset=[target])
-    
-    y_train = df_train[target].values
-    y_test = df_test[target].values
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    y_train = np.minimum(y_train, 5.0)
-    y_test = np.minimum(y_test, 5.0)
+def get_params(model):
+    return (p for p in model.parameters() if p.requires_grad)
 
-    if string_rep == 'SMILES':
-        x_train = list(df_train['canon_smiles'])
-        x_test = list(df_test['canon_smiles'])
-    elif string_rep == 'SELFIES':
-        assert sf == 1
-        x_train = list(df_train['selfies'])
-        x_test = list(df_test['selifes'])
+def train(cfg):
+    #get trainloader
+    train_loader, val_loader, vocab = get_data(cfg)
+
+    #get model
+    cfg.vocab_size = len(vocab)
+    cfg.pad_idx = vocab.pad
+    if cfg.model_name == 'char_rnn':
+        model = hydra.utils.instantiate(cfg.charrnn)
     else:
         raise NotImplementedError
+    
+    #set optimizer
+    optimizer = optim.Adam(get_params(model), lr=cfg.lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.num_epochs, eta_min=0.0)
 
-    return x_train, y_train, x_test, y_test
+    num_params = count_parameters(model)
+    print('The model has ', num_params, ' number of trainable parameters.')
 
-def replace_halogen(string):
-    """Regex to replace Br and Cl with single letters"""
-    br = re.compile('Br')
-    cl = re.compile('Cl')
-    string = br.sub('R', string)
-    string = cl.sub('L', string)
+    avg_train_loss = Averager()
+    for epoch in range(cfg.num_epochs):
+        metrics = dict()
+        for step, (x, y, lens) in enumerate(train_loader):
+            preds = model(x, lens)
+            loss = F.mse_loss(preds, y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            avg_train_loss.add(loss.item())
 
-    return string
+            if step % cfg.eval_interval == 0:
+                metrics.update(
+                    eval(model, val_loader))
+                print('Epoch = ', epoch, 'Step = ', step, ' r2_score time = ', metrics['r2 score'])
+                model.train()
+                
+            if cfg.wandb_log and step % cfg.log_interval==0:
+                metrics['train loss'] = avg_train_loss.item()
+                metrics['lr'] = scheduler.get_last_lr()[0]
+                metrics['epoch'] = epoch                
+                avg_train_loss = Averager()
+                wandb.log(metrics)
+        scheduler.step()
 
-class smiles_vocabulary(object):
-    def __init__(self, vocab_path='data/dockstring_smiles_vocabulary.txt'):
+def eval(model, val_loader):
+    metrics = dict()
+    preds_list = []
+    targets_list = []
+    avg_loss = Averager()
+    model.eval()
+    with torch.no_grad():
+        for step, (x, y, lens) in enumerate(val_loader):
+            preds = model(x, lens)
+            preds_list.append(preds)
+            targets_list.append(y)
+            loss = F.mse_loss(preds, y)
+            avg_loss.add(loss.item())
+
+    preds_list = torch.cat(preds_list).tolist()
+    targets_list = torch.cat(targets_list).tolist()
+    r2_score = sklearn.metrics.r2_score(y_true = targets_list, y_pred = preds_list)
+    metrics['r2 score'] = r2_score
+    metrics['val loss'] = avg_loss.item()
+    return metrics
+
+@hydra.main(config_path='cfgs', config_name='config', version_base=None)
+def main(cfg: DictConfig):
+    hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
+    from regression import train
+    if cfg.wandb_log:
+        project_name = 'docking-regression-' + cfg.target
+        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir'])
+        wandb.run.name = cfg.wandb_run_name
+    train(cfg)
         
-        self.alphabet = set()
-        with open(vocab_path, 'r') as f:
-            chars = f.read().split()
-        for char in chars:
-            self.alphabet.add(char)
-        
-        self.special_tokens = ['BOS', 'EOS', 'PAD', 'UNK']
-
-        self.alphabet_list = list(self.alphabet)
-        self.alphabet_list.sort()
-        self.alphabet_list = self.alphabet_list + self.special_tokens
-        self.alphabet_length = len(self.alphabet_list)
-
-        self.alphabet_to_idx = {s: i for i, s in enumerate(self.alphabet_list)}
-        self.idx_to_alphabet = {s: i for i, s in self.alphabet_to_idx.items()}
-    
-    def tokenize(self, smiles, add_bos=False, add_eos=False):
-        """Takes a SMILES and return a list of characters/tokens"""
-        regex = '(\[[^\[\]]{1,6}\])'
-        smiles = replace_halogen(smiles)
-        char_list = re.split(regex, smiles)
-        tokenized = []
-        for char in char_list:
-            if char.startswith('['):
-                tokenized.append(char)
-            else:
-                chars = [unit for unit in char]
-                [tokenized.append(unit) for unit in chars]
-        if add_bos:
-            tokenized.insert(0, "BOS")
-        if add_eos:
-            tokenized.append('EOS')
-        return tokenized
-    
-    def encode(self, smiles, add_bos=False, add_eos=False):
-        """Takes a list of SMILES and encodes to array of indices"""
-        char_list = self.tokenize(smiles, add_bos, add_eos)
-        encoded_smiles = np.zeros(len(char_list), dtype=np.uint8)
-        for i, char in enumerate(char_list):
-            encoded_smiles[i] = self.alphabet_to_idx[char]
-        return encoded_smiles
-
-    def decode(self, encoded_smiles, rem_bos=True, rem_eos=True):
-        """Takes an array of indices and returns the corresponding SMILES"""
-        if rem_bos and encoded_smiles[0] == self.bos:
-            encoded_smiles = encoded_smiles[1:]
-        if rem_eos and encoded_smiles[-1] == self.eos:
-            encoded_smiles = encoded_smiles[:-1]
-            
-        chars = []
-        for i in encoded_smiles:
-            chars.append(self.idx_to_alphabet[i])
-        smiles = "".join(chars)
-        smiles = smiles.replace("L", "Cl").replace("R", "Br")
-        return smiles
-
-    def __len__(self):
-        return len(self.alphabet_to_idx)
-    
-    @property
-    def bos(self):
-        return self.alphabet_to_idx['BOS']
-    
-    @property
-    def eos(self):
-        return self.alphabet_to_idx['EOS']
-    
-    @property
-    def pad(self):
-        return self.alphabet_to_idx['PAD']
-    
-    @property
-    def unk(self):
-        return self.alphabet_to_idx['UNK']
-
-class StringDataset:
-    def __init__(self, vocab, data, target, device, add_bos=False, add_eos=False):
-        """
-        Arguments:
-            vocab: CharVocab instance for tokenization
-            data (list): SMILES/SELFIES strings for the datasety
-            target (arra): Array of target values
-            target (list): 
-        """
-        self.data = data
-        self.target = target
-        self.vocab = vocab
-        self.device = device
-        self.encoded_data = [vocab.encode(s, add_bos, add_eos) for s in data]
-
-    def __len__(self):
-        """
-        Computes a number of objects in the dataset
-        """
-        return len(self.data)
-
-    def __getitem__(self, index):
-        return torch.tensor(self.encoded_data[index], dtype=torch.long), self.target[index]
-
-    def default_collate(self, batch):
-        x, y = list(zip(*batch))
-        lens = [len(s) for s in x]
-        x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=self.vocab.pad).to(self.device) 
-        y = torch.tensor(y, dtype=torch.float32, device=self.device)
-        return x, y, lens
-
-vocab = smiles_vocabulary()
-x_train, y_train, x_test, y_test = get_dataset()
-train_dataset = StringDataset(vocab, x_train, y_train, device='cuda')
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, drop_last=False, collate_fn=train_dataset.default_collate)
-
-val_dataset = StringDataset(vocab, x_test, y_test, device='cuda')
-val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, drop_last=False, collate_fn=train_dataset.default_collate)
-
-
-model = CharRNN(vocab, device='cuda')
-model.train()
-def get_params():
-    return (p for p in model.parameters() if p.requires_grad)
-optimizer = optim.Adam(get_params(), lr=1e-3)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.5)
-
-model.eval()
-with torch.no_grad():
-    for step, (x, y, lens) in enumerate(val_loader):
-        preds = model(x, lens)
-        loss = F.mse_loss(preds, y)
-        print('val loss = ',  loss)
-
-model.train()
-for step, (x, y, lens) in enumerate(train_loader):
-    preds = model(x, lens)
-    loss = F.mse_loss(preds, y)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    print('train loss = ',  loss)
-
-    
-
-scheduler.step()
+if __name__ == '__main__':
+    main()

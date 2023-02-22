@@ -3,23 +3,27 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.rnn as rnn_utils
 
-class CharRNN(nn.Module):
-    def __init__(self, vocabulary, device):
-        super(CharRNN, self).__init__()
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+class CharMLP(nn.Module):
+    def __init__(self, vocabulary, device):
+        super(CharMLP, self).__init__()
         self.vocabulary = vocabulary
-        self.hidden_size = 256
+        self.hidden_size = 786
         self.num_layers = 3
         self.dropout = 0.2
         self.device = device
         self.vocab_size = self.input_size = len(vocabulary)
 
-        self.embedding_layer = nn.Embedding(self.vocab_size, 32,
-                                            padding_idx=vocabulary.pad).to(self.device)
-        self.lstm_layer = nn.LSTM(32, self.hidden_size,
-                                  self.num_layers, dropout=0.2,
-                                  batch_first=True).to(self.device)
-        self.linear_layer = nn.Linear(self.hidden_size, 1).to(self.device)
+class CharRNN(nn.Module):
+    def __init__(self, vocab_size, pad_idx, embedding_size, num_layers, hidden_size, dropout, device):
+        super(CharRNN, self).__init__()
+
+        self.device = device
+        self.embedding_layer = nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx).to(self.device)
+        self.lstm_layer = nn.LSTM(embedding_size, hidden_size, num_layers, dropout=dropout, batch_first=True).to(self.device)
+        self.linear_layer = nn.Linear(hidden_size, 1).to(self.device)
 
     def forward(self, x, lengths, hiddens=None):
         x = self.embedding_layer(x)

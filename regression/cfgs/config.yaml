@@ -1,0 +1,43 @@
+#common
+target: 'ESR2'
+string_rep: 'smiles'
+data_path: 'data/filtered_dockstring-dataset.tsv'
+splits_path: 'data/filtered_cluster_split.tsv'
+vocab_path: 'data/dockstring_smiles_vocabulary.txt'
+
+#learning
+lr: 1e-3
+seed: 1
+device: 'cuda'
+num_epochs: 10
+batch_size: 64
+
+model_name: 'char_rnn'
+vocab_size:
+pad_idx:
+
+#CharRNN
+charrnn:
+  _target_: models.CharRNN
+  vocab_size: ${vocab_size}
+  pad_idx: ${pad_idx}
+  device: ${device}
+  num_layers: 3
+  hidden_size: 256
+  embedding_size: 32
+  dropout: 0.2
+
+#eval
+eval_interval: 100
+
+#logging
+wandb_log: False
+wandb_entity: 'raj19'
+wandb_run_name: 'docking-regression'
+log_interval: 100
+
+hydra:
+  run:
+    dir: ./local_exp/${now:%Y.%m.%d}/${now:%H.%M.%S}_${seed}
+  job:
+    chdir: False
