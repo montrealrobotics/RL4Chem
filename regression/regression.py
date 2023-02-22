@@ -38,7 +38,8 @@ def train(cfg):
         raise NotImplementedError
     
     #set optimizer
-    optimizer = optim.Adam(get_params(model), lr=cfg.lr)
+    # optimizer = optim.Adam(get_params(model), lr=cfg.lr)
+    optimizer = optim.SGD(get_params(model), cfg.lr, momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.num_epochs, eta_min=0.0)
 
     num_params = count_parameters(model)
@@ -68,6 +69,10 @@ def train(cfg):
                 avg_train_loss = Averager()
                 wandb.log(metrics)
         scheduler.step()
+    
+    metrics.update(
+            eval(model, val_loader))
+    print('Epoch = ', epoch, 'Step = ', step, ' r2_score time = ', metrics['r2 score'])
 
 def eval(model, val_loader):
     metrics = dict()
