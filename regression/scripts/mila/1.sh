@@ -17,4 +17,4 @@ rsync -a $HOME/RL4Chem/ $SLURM_TMPDIR/RL4Chem
 echo "moved code to slurm tmpdir"
 
 cd $SLURM_TMPDIR/RL4Chem/regression
-python regression.py max_grad_norm=${array[SLURM_ARRAY_TASK_ID]} seed=1 wandb_log=True wandb_run_name=${array[SLURM_ARRAY_TASK_ID]}_charnn_1
+python regression.py seed=$SLURM_ARRAY_TASK_ID wandb_log=True wandb_run_name="selfies_charnn_"$SLURM_ARRAY_TASK_ID
