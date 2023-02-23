@@ -178,6 +178,8 @@ class StringDataset:
         self.vocab = vocab
         self.device = device
         self.encoded_data = [vocab.encode(s, add_bos, add_eos) for s in data]
+        self.len = [len(s) for s in self.encoded_data]
+        self.max_len = np.max(self.len)
 
     def __len__(self):
         """
@@ -196,11 +198,20 @@ class StringDataset:
                 x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=self.vocab.pad).to(self.device) 
                 y = torch.tensor(y, dtype=torch.float32, device=self.device)
                 return x, y, lens
-            return collate_fn
+        elif model_name == 'char_mlp':
+            def collate_fn(batch):
+                x, y = list(zip(*batch))
+                x = list(x)
+                x[0] = torch.nn.ConstantPad1d((0, self.max_len - x[0].shape[0]), self.vocab.pad)(x[0])
+                x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=self.vocab.pad).to(self.device) 
+                y = torch.tensor(y, dtype=torch.float32, device=self.device)
+                return x, y
         else:
             raise NotImplementedError
+        
+        return collate_fn
     
-def get_data(cfg):
+def get_data(cfg, get_max_len=False):
     data_path=cfg.data_path
     splits_path=cfg.splits_path
     target=cfg.target
@@ -245,4 +256,7 @@ def get_data(cfg):
     val_dataset = StringDataset(vocab, x_test, y_test, device='cuda')
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=False, collate_fn=train_dataset.get_collate_fn(cfg.model_name))
 
-    return train_loader, val_loader, vocab
+    if get_max_len:
+        return train_loader, val_loader, vocab, max(train_dataset.max_len, val_dataset.max_len)
+    else:
+        return train_loader, val_loader, vocab

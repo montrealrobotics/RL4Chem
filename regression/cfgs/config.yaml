@@ -11,10 +11,10 @@ device: 'cuda'
 num_epochs: 10
 batch_size: 64
 max_grad_norm: 0.5
-
-model_name: 'char_rnn'
+model_name:
 vocab_size:
 pad_idx:
+input_size: 
 
 #CharRNN
 charrnn:
@@ -26,6 +26,16 @@ charrnn:
   hidden_size: 256
   embedding_size: 32
   dropout: 0.2
+
+#CharMLP
+charmlp:
+  _target_: models.CharMLP
+  vocab_size: ${vocab_size}
+  pad_idx: ${pad_idx}
+  device: ${device}
+  hidden_size: 256
+  embedding_size: 32
+  input_size: ${input_size}
 
 #eval
 eval_interval: 100

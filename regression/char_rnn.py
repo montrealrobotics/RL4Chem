@@ -33,10 +33,7 @@ def train(cfg):
     #get model
     cfg.vocab_size = len(vocab)
     cfg.pad_idx = vocab.pad
-    if cfg.model_name == 'char_rnn':
-        model = hydra.utils.instantiate(cfg.charrnn)
-    else:
-        raise NotImplementedError
+    model = hydra.utils.instantiate(cfg.charrnn)
     
     #set optimizer
     optimizer = optim.Adam(get_params(model), lr=cfg.lr, eps=1e-4)
@@ -102,7 +99,8 @@ def eval(model, val_loader):
 @hydra.main(config_path='cfgs', config_name='config', version_base=None)
 def main(cfg: DictConfig):
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
-    from regression import train
+    from char_rnn import train
+    cfg.model_name = 'char_rnn'
     if cfg.wandb_log:
         project_name = 'docking-regression-' + cfg.target
         wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir'])
