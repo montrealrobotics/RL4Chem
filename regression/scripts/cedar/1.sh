@@ -7,8 +7,6 @@
 #SBATCH --gres=gpu:v100l:1
 #SBATCH --array=1-3
 
-array=(-1 "0.5" "10" "100")
-
 rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --exclude=env_rl4chem
 echo "moved code to slurm tmpdir"
 
