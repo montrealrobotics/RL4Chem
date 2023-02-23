@@ -1,6 +1,7 @@
 import hydra
 import wandb
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import sklearn.metrics
@@ -45,6 +46,7 @@ def train(cfg):
     print('The model has ', num_params, ' number of trainable parameters.')
 
     avg_train_loss = Averager()
+    avg_grad_norm = Averager()
     for epoch in range(cfg.num_epochs):
         metrics = dict()
         for step, (x, y, lens) in enumerate(train_loader):
@@ -52,8 +54,10 @@ def train(cfg):
             loss = F.mse_loss(preds, y)
             optimizer.zero_grad()
             loss.backward()
+            grad_norm = nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
             optimizer.step()
             avg_train_loss.add(loss.item())
+            avg_grad_norm.add(grad_norm.item())
 
             if step % cfg.eval_interval == 0:
                 metrics.update(
@@ -63,6 +67,7 @@ def train(cfg):
                 
             if cfg.wandb_log and step % cfg.log_interval==0:
                 metrics['train loss'] = avg_train_loss.item()
+                metrics['average grad norm'] = avg_grad_norm.item()
                 metrics['lr'] = scheduler.get_last_lr()[0]
                 metrics['epoch'] = epoch                
                 avg_train_loss = Averager()

@@ -11,6 +11,7 @@ seed: 1
 device: 'cuda'
 num_epochs: 10
 batch_size: 64
+max_grad_norm: 0.5
 
 model_name: 'char_rnn'
 vocab_size:
