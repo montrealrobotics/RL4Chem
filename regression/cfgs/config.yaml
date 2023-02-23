@@ -36,6 +36,7 @@ charmlp:
   hidden_size: 256
   embedding_size: 32
   input_size: ${input_size}
+  dropout: 0.2
 
 #eval
 eval_interval: 100
