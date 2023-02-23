@@ -59,7 +59,7 @@ def train(cfg):
             if step % cfg.eval_interval == 0:
                 metrics.update(
                     eval(model, val_loader))
-                print('Epoch = ', epoch, 'Step = ', step, ' r2_score time = ', metrics['r2 score'])
+                print('Epoch = ', epoch, 'Step = ', step, ' r2_score = ', metrics['r2 score'])
                 model.train()
                 
             if cfg.wandb_log and step % cfg.log_interval==0:
@@ -73,7 +73,7 @@ def train(cfg):
     
     metrics.update(
             eval(model, val_loader))
-    print('Epoch = ', epoch, 'Step = ', step, ' r2_score time = ', metrics['r2 score'])
+    print('Epoch = ', epoch, 'Step = ', step, ' r2_score = ', metrics['r2 score'])
 
 def eval(model, val_loader):
     metrics = dict()

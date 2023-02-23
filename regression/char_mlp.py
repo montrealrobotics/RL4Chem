@@ -44,7 +44,7 @@ def train(cfg):
     print('The model has ', num_params, ' number of trainable parameters.')
 
     avg_train_loss = Averager()
-    avg_grad_norm = Averager()
+    # avg_grad_norm = Averager()
     for epoch in range(cfg.num_epochs):
         metrics = dict()
         for step, (x, y) in enumerate(train_loader):
@@ -52,25 +52,29 @@ def train(cfg):
             loss = F.mse_loss(preds, y)
             optimizer.zero_grad()
             loss.backward()
-            grad_norm = nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
+            # grad_norm = nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
             optimizer.step()
             avg_train_loss.add(loss.item())
-            avg_grad_norm.add(grad_norm.item())
+            # avg_grad_norm.add(grad_norm.item())
 
             if step % cfg.eval_interval == 0:
                 metrics.update(
                     eval(model, val_loader))
-                print('Epoch = ', epoch, 'Step = ', step, ' r2_score time = ', metrics['r2 score'])
+                print('Epoch = ', epoch, 'Step = ', step, ' r2_score = ', metrics['r2 score'])
                 model.train()
                 
             if cfg.wandb_log and step % cfg.log_interval==0:
                 metrics['train loss'] = avg_train_loss.item()
-                metrics['average grad norm'] = avg_grad_norm.item()
+                # metrics['average grad norm'] = avg_grad_norm.item()
                 metrics['lr'] = scheduler.get_last_lr()[0]
                 metrics['epoch'] = epoch                
                 avg_train_loss = Averager()
                 wandb.log(metrics)
         scheduler.step()
+    
+    metrics.update(
+            eval(model, val_loader))
+    print('Epoch = ', epoch, 'Step = ', step, ' r2_score = ', metrics['r2 score'])
     
 def eval(model, val_loader):
     metrics = dict()
