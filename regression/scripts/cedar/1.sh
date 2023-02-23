@@ -12,5 +12,5 @@ array=(-1 "0.5" "10" "100")
 rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --exclude=env_rl4chem
 echo "moved code to slurm tmpdir"
 
-singularity exec --nv --home $SLURM_TMPDIR --env WANDB_API_KEY="7da29c1c6b185d3ab2d67e399f738f0f0831abfc",REQUESTS_CA_BUNDLE="/usr/local/envs/rl4chem/lib/python3.11/site-packages/certifi/cacert.pem",HYDRA_FULL_ERROR=1 $SCRATCH/rl4chem.sif bash -c "source activate rl4chem && cd RL4Chem && pip install scikit-learn==1.0.2 &&\
-python regression.py max_grad_norm=${array[SLURM_ARRAY_TASK_ID]} seed=1 wandb_log=True wandb_run_name=${array[SLURM_ARRAY_TASK_ID]}_charnn_1"
+singularity exec --nv --home $SLURM_TMPDIR --env WANDB_API_KEY="7da29c1c6b185d3ab2d67e399f738f0f0831abfc",REQUESTS_CA_BUNDLE="/usr/local/envs/rl4chem/lib/python3.11/site-packages/certifi/cacert.pem",HYDRA_FULL_ERROR=1 $SCRATCH/rl4chem_old.sif bash -c "source activate rl4chem && cd RL4Chem && pip install scikit-learn &&\
+python regression.py max_grad_norm=0.5 seed=1 wandb_log=True wandb_run_name=0.5_charnn_$SLURM_ARRAY_TASK_ID"
