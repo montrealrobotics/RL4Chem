@@ -10,6 +10,19 @@ import utils
 
 from pathlib import Path
 from omegaconf import DictConfig
+from collections import defaultdict
+
+class Topk():
+    def __init__(self):
+        self.top25 = []
+
+    def add(self, scores):
+        scores = np.sort(np.concatenate([self.top25, scores]))
+        self.top25 = scores[-25:]
+
+    def top(self, k):
+        assert k <= 25
+        return self.top25[-k]
 
 def make_agent(env, device, cfg):    
     obs_dims = np.prod(env.observation_shape)
@@ -21,6 +34,7 @@ def make_agent(env, device, cfg):
 
     env_buffer = utils.ReplayMemory(env_buffer_size, obs_dims, obs_dtype, action_dtype)
     fresh_env_buffer = utils.FreshReplayMemory(cfg.parallel_molecules, env.episode_length, obs_dims, obs_dtype, action_dtype)
+    docking_buffer = defaultdict(lambda: None)
 
     if cfg.agent == 'sac':
         from sac import SacAgent
@@ -29,7 +43,7 @@ def make_agent(env, device, cfg):
                         cfg.hidden_dims, cfg.wandb_log, cfg.agent_log_interval)
     else:
         raise NotImplementedError
-    return agent, env_buffer, fresh_env_buffer
+    return agent, env_buffer, fresh_env_buffer, docking_buffer
 
 def make_env(cfg):
     print(cfg.id)
@@ -39,164 +53,145 @@ def make_env(cfg):
     else:
         raise NotImplementedError
 
-class Workspace:
-    def __init__(self, cfg):
-        self.work_dir = Path.cwd()
-        self.cfg = cfg
-        if self.cfg.save_snapshot:
-            self.checkpoint_path = self.work_dir / 'checkpoints'
-            self.checkpoint_path.mkdir(exist_ok=True)
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
-        self.set_seed()
-        self.device = torch.device(cfg.device)
-        self.train_env, self.eval_env = make_env(self.cfg)
-        self.agent, self.env_buffer, self.fresh_env_buffer = make_agent(self.train_env, self.device, self.cfg)
-        self.unique_molecules = set()
-        self.current_reward_batch = np.zeros((cfg.parallel_molecules,), dtype=np.float32)
-        self.current_reward_info = dict()
-        self._train_step = 0
-        self._train_episode = 0
-        self._best_eval_returns = -np.inf
-        self._best_train_returns = -np.inf
+def collect_molecule(env, agent, fresh_env_buffer):
+    state, done, t = env.reset(), False, 0
+    while not done:
+        action = agent.get_action(state)
+        next_state, reward, done, info = env.step(action)
+        fresh_env_buffer.push((state, action, reward, next_state, done, t))
+        t += 1
+        state = next_state
+    return info['episode']
 
-    def set_seed(self):
-        random.seed(self.cfg.seed)
-        np.random.seed(self.cfg.seed)
-        torch.manual_seed(self.cfg.seed)
-        torch.cuda.manual_seed_all(self.cfg.seed)
+def collect_random_molecule(env, fresh_env_buffer):
+    state, done, t = env.reset(), False, 0
+    while not done:
+        action = np.random.randint(env.num_actions)
+        next_state, reward, done, info = env.step(action)
+        fresh_env_buffer.push((state, action, reward, next_state, done, t))
+        t += 1
+        state = next_state
+    return info['episode']
 
-    def _explore(self):
-        print('random exploration of ', self.cfg.parallel_molecules, ' number of molecules begins')
-        explore_steps = self.cfg.parallel_molecules * self.train_env.episode_length
+def explore(cfg, train_env, env_buffer, fresh_env_buffer, docking_buffer):
+    explore_mols = 0
+    while explore_mols < cfg.explore_molecules:
+        episode_info = collect_random_molecule(train_env, fresh_env_buffer)
 
-        state, done = self.train_env.reset(), False
-        for _ in range(explore_steps): 
-            action = np.random.randint(self.train_env.num_actions)
-            next_state, reward, done, info = self.train_env.step(action)
-            
-            self.fresh_env_buffer.push((state, action, reward, next_state, done))
-            
-            if done:
-                state, done = self.train_env.reset(), False
-            else:
-                state = next_state
-        
-        reward_start_time = time.time()
-        self.current_reward_batch, self.current_reward_info = self.train_env.get_reward_batch()
-        reward_eval_time = time.time() - reward_start_time
-        self.fresh_env_buffer.update_final_rewards(self.current_reward_batch)
-        self.env_buffer.push_fresh_buffer(self.fresh_env_buffer)
-        self.fresh_env_buffer.reset()
-        print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', len(set(self.current_reward_info['selfies'])), ' Evaluation time = ', reward_eval_time)
-        print(np.sort(self.current_reward_batch))
-        self.unique_molecules.update(self.current_reward_info['smiles'])
-
-    def train(self):
-        self._eval()
-        self._explore()
-
-        parallel_counter = 0
-        state, done, episode_start_time, episode_metrics = self.train_env.reset(), False, time.time(), dict()
-        
-        for _ in range(1, self.cfg.num_train_steps):
-            action = self.agent.get_action(state, self._train_step)
-            next_state, reward, done, info = self.train_env.step(action)
-            self.fresh_env_buffer.push((state, action, reward, next_state, done))
-            self._train_step += 1
-            
-            if done:
-                self._train_episode += 1
-                print("Episode: {}, total numsteps: {}".format(self._train_episode, self._train_step)) 
-                state, done, episode_start_time = self.train_env.reset(), False, time.time()
-                if self.cfg.wandb_log:
-                    episode_metrics['episodic_length'] = info["episode"]["l"]
-                    episode_metrics['steps_per_second'] = info["episode"]["l"]/(time.time() - episode_start_time)
-                    episode_metrics['env_buffer_length'] = len(self.env_buffer)
-                    episode_metrics['episodic_reward'] = self.current_reward_batch[parallel_counter]
-                    episode_metrics['episodic_selfies_len'] = self.current_reward_info['len_selfies'][parallel_counter]
-                    wandb.log(episode_metrics, step=self._train_step)
-                parallel_counter += 1
-            else:
-                state = next_state
-
-            self.agent.update(self.env_buffer, self._train_step)
-
-            if self._train_step % self.cfg.eval_episode_interval == 0:
-                self._eval()
-
-            if self.cfg.save_snapshot and self._train_step % self.cfg.save_snapshot_interval == 0:
-                self.save_snapshot()
-
-            if parallel_counter == self.cfg.parallel_molecules:
-                reward_start_time = time.time()
-                self.current_reward_batch, self.current_reward_info = self.train_env.get_reward_batch()
-                reward_eval_time = time.time() - reward_start_time
-                self.fresh_env_buffer.update_final_rewards(self.current_reward_batch)
-                self.env_buffer.push_fresh_buffer(self.fresh_env_buffer)
-                self.fresh_env_buffer.reset()
-
-                unique_strings = len(set(self.current_reward_info['selfies']))
-                print('Total strings = ', len(self.current_reward_info['selfies']), 'Unique strings = ', unique_strings, 'Cummulative unique strings = ', len(self.unique_molecules), ' Evaluation time = ', reward_eval_time)
-                self.unique_molecules.update(self.current_reward_info['smiles'])
-                print(np.sort(self.current_reward_batch))
-                best_idx = np.argmax(self.current_reward_batch)
-                print(self.current_reward_info['smiles'][best_idx])
-                
-                if self.cfg.wandb_log:
-                    wandb.log({'reward_eval_time' : reward_eval_time, 
-                               'unique strings': unique_strings,
-                               'cummulative unique strings' : len(self.unique_molecules)}, step = self._train_step)
-                parallel_counter = 0
-                
-    def _eval(self):
-        steps = 0
-        for _ in range(self.cfg.num_eval_episodes):
-            done = False 
-            state = self.eval_env.reset()
-            while not done:
-                action = self.agent.get_action(state, self._train_step, True)
-                next_state, _, done ,info = self.eval_env.step(action)
-                state = next_state
-                
-            steps += info["episode"]["l"]
-
-        final_rewards, _ = self.eval_env.get_reward_batch()
-        eval_metrics = dict()
-        eval_metrics['eval_episodic_return'] = sum(final_rewards)/self.cfg.num_eval_episodes
-        eval_metrics['eval_episodic_length'] = steps/self.cfg.num_eval_episodes
-
-        print("Episode: {}, total numsteps: {}, average Evaluation return: {}".format(self._train_episode, self._train_step, round(eval_metrics['eval_episodic_return'], 2)))
-
-        if self.cfg.save_snapshot and sum(final_rewards)/self.cfg.num_eval_episodes >= self._best_eval_returns:
-            self.save_snapshot(best=True)
-            self._best_eval_returns = sum(final_rewards)/self.cfg.num_eval_episodes
-
-        if self.cfg.wandb_log:
-            wandb.log(eval_metrics, step = self._train_step)
-
-    def save_snapshot(self, best=False):
-        if best:
-            snapshot = Path(self.checkpoint_path) / 'best.pt'
+        if docking_buffer[episode_info['smiles']] is not None:
+            fresh_env_buffer.remove_last_episode(episode_info['l'])
         else:
-            snapshot = Path(self.checkpoint_path) / Path(str(self._train_step)+'.pt')
-        save_dict = self.agent.get_save_dict()
-        torch.save(save_dict, snapshot)
+            docking_buffer[episode_info['smiles']] = 0
+            train_env._add_smiles_to_batch(episode_info['smiles'])
+            explore_mols += 1
+    
+    reward_start_time = time.time()
+    parallel_reward_batch, parallel_reward_info = train_env.get_reward_batch()
+    reward_eval_time = time.time() - reward_start_time
+
+    #Update main buffer and docking_buffer and reset fresh buffer
+    fresh_env_buffer.update_final_rewards(parallel_reward_batch)
+    env_buffer.push_fresh_buffer(fresh_env_buffer)
+    fresh_env_buffer.reset()
+
+    # Uncomment this when you want to save all molecules with their docking score in a text
+    # for i, smiles_string in enumerate(parallel_reward_info['smiles']):
+    #     docking_buffer[smiles_string] = parallel_reward_info['docking_scores'][i]
+    
+    print('Total strings explored = ', cfg.explore_molecules, ' Reward evaluation time = ', reward_eval_time)
+    print(np.sort(parallel_reward_batch))
+
+    return parallel_reward_batch
+
+def train(cfg):
+    set_seed(cfg.seed)
+    device = torch.device(cfg.device)
+
+    #get train and eval envs
+    train_env, eval_env = make_env(cfg)
+
+    #get agent and memory
+    agent, env_buffer, fresh_env_buffer, docking_buffer = make_agent(train_env, device, cfg)
+    topk = Topk()
+
+    #explore
+    cummulative_unique_molecules = cfg.explore_molecules
+    docking_scores = explore(cfg, train_env, env_buffer, fresh_env_buffer, docking_buffer)
+    topk.add(docking_scores)
+    
+    #eval
+    #To-do
+
+    #train
+    train_step = 0
+    train_unique_counter = 0
+    train_parallel_counter = 0
+    while train_step < cfg.num_train_steps:
+
+        episode_info = collect_molecule(train_env, agent, fresh_env_buffer)
+        train_parallel_counter += 1
+
+        if docking_buffer[episode_info['smiles']] is not None:
+            fresh_env_buffer.remove_last_episode(episode_info['l'])
+            train_step += episode_info['l']
+        else:
+            docking_buffer[episode_info['smiles']] = 0
+            train_env._add_smiles_to_batch(episode_info['smiles'])
+            train_unique_counter += 1
+
+            for _ in range(episode_info['l']):
+                agent.update(env_buffer, train_step)
+                train_step += 1
+            
+        if train_parallel_counter == cfg.parallel_molecules:
+            
+            reward_start_time = time.time()
+            parallel_reward_batch, parallel_reward_info = train_env.get_reward_batch()
+            reward_eval_time = time.time() - reward_start_time
+            
+            topk.add(parallel_reward_batch)
+
+            #Update main buffer and reset fresh buffer
+            fresh_env_buffer.update_final_rewards(parallel_reward_batch)
+            env_buffer.push_fresh_buffer(fresh_env_buffer)
+            fresh_env_buffer.reset()
+
+            cummulative_unique_molecules += train_unique_counter
+
+            print('Total strings = ', train_parallel_counter, 'Unique strings = ', train_unique_counter, ' Evaluation time = ', reward_eval_time)
+            print(np.sort(parallel_reward_batch))
+
+            if cfg.wandb_log:
+                metrics = dict()
+                metrics['reward_eval_time'] = reward_eval_time
+                metrics['cummulative_unique_strings'] = cummulative_unique_molecules
+                metrics['unique_strings'] = train_unique_counter
+                metrics['top1'] = topk.top(1)
+                metrics['top5'] = topk.top(5)
+                metrics['top25'] = topk.top(25)
+                wandb.log(metrics, step=train_step)
+                    
+            train_unique_counter = 0
+            train_parallel_counter = 0
 
 @hydra.main(config_path='cfgs', config_name='config', version_base=None)
 def main(cfg: DictConfig):
 
-    from train import Workspace as W
+    from train import train
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
 
     if cfg.wandb_log:
         project_name = 'rl4chem_' + cfg.target
-        with wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir']):
-            wandb.run.name = cfg.wandb_run_name
-            workspace = W(cfg)
-            workspace.train()
-    else:
-        workspace = W(cfg)
-        workspace.train()
+        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir'])
+        wandb.run.name = cfg.wandb_run_name
+    
+    train(cfg)
         
 if __name__ == '__main__':
     main()

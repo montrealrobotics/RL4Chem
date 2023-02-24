@@ -122,17 +122,19 @@ class docking_env(object):
                     
         if done:
             molecule_smiles = sf.decoder(self.molecule_selfie)
-            pretty_selfies = sf.encoder(molecule_smiles)
-
-            self.smiles_batch.append(molecule_smiles)
-            self.selfies_batch.append(pretty_selfies)
-            self.len_selfies_batch.append(sf.len_selfies(pretty_selfies))
+            # pretty_selfies = sf.encoder(molecule_smiles)
+            # self.selfies_batch.append(pretty_selfies)
+            # self.len_selfies_batch.append(sf.len_selfies(pretty_selfies))
             info["episode"]["l"] = self.t
+            info["episode"]["smiles"] = molecule_smiles
             reward = -1000
         else:
             reward = 0
         return self.enc_selifes_fn(self.molecule_selfie), reward, done, info
     
+    def _add_smiles_to_batch(self, molecule_smiles):
+        self.smiles_batch.append(molecule_smiles)
+
     def _reset_store_batch(self):
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
@@ -168,31 +170,6 @@ if __name__ == '__main__':
         timeout_dock= 100
 
     env = docking_env(args)
-    state = env.reset()
-    done = False 
-    next_state, reward, done, info = env.step(15)
-    print(env.action_space[15])
-    print(next_state)
-    print(env.molecule_selfie)
-    # print(state)
-    # while not done:
-    #     action = np.random.randint(env.num_actions)
-    #     next_state, reward, done, info = env.step(action)
-    #     print(action)
-    #     print(env.alphabet_to_idx[env.action_space[action]])
-    #     print(next_state)
-    #     print('\n')
-
-    # possible_states = []
-    # for a1 in range(env.num_actions):
-    #     for a2 in range(env.num_actions):
-    #         env.reset()
-    #         env.step(a1)
-    #         env.step(a2)
-    
-    #     reward_batch, reward_info = env.get_reward_batch()
-    #     print(np.argmax(reward_batch), np.max(reward_batch))
-    #     print(reward_info['smiles'][np.argmax(reward_batch)])
 
 '''
 ENV stats

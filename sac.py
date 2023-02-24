@@ -74,7 +74,6 @@ class SacAgent:
         self.policy_update_interval = policy_update_interval
         self.target_update_interval = target_update_interval
         self.batch_size = batch_size
-        self.aug = NoiseAug()
 
         #exploration
         self.entropy_coefficient = entropy_coefficient
@@ -87,7 +86,7 @@ class SacAgent:
         self._init_networks(obs_dims, num_actions, hidden_dims)
         self._init_optims(lr)
     
-    def get_action(self, obs, step, eval=False):
+    def get_action(self, obs, eval=False):
         with torch.no_grad():
             obs = torch.FloatTensor(obs).to(self.device) 
             action_dist = self.actor(obs)    
@@ -104,15 +103,12 @@ class SacAgent:
         else:
             log = False 
 
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = buffer.sample(self.batch_size)
-
-        # state_batch = self.aug(torch.FloatTensor(state_batch).to(self.device))
-        # next_state_batch = self.aug(torch.FloatTensor(next_state_batch).to(self.device))
-        state_batch = torch.FloatTensor(state_batch).to(self.device)
-        next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
-        action_batch = torch.FloatTensor(action_batch).to(self.device)
-        reward_batch = torch.FloatTensor(reward_batch).to(self.device)
-        done_batch = torch.FloatTensor(done_batch).to(self.device)  
+        state_batch, action_batch, reward_batch, next_state_batch, done_batch, time_batch = buffer.sample(self.batch_size)
+        state_batch = torch.tensor(state_batch, dtype=torch.float32, device=self.device)
+        next_state_batch = torch.tensor(next_state_batch, dtype=torch.float32, device=self.device)
+        action_batch = torch.tensor(action_batch,  dtype=torch.float32, device=self.device)
+        reward_batch = torch.tensor(reward_batch, dtype=torch.float32, device=self.device)
+        done_batch = torch.tensor(done_batch, dtype=torch.float32, device=self.device)  
         discount_batch = self.gamma*(1-done_batch)
 
         self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, discount_batch, log, metrics)
