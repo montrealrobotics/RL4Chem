@@ -112,12 +112,8 @@ class SacAgent:
         discount_batch = self.gamma*(1-done_batch)
 
         self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, discount_batch, log, metrics)
-        actor_log = False
-        if step % self.policy_update_interval == 0:
-            for _ in range(self.policy_update_interval):
-                actor_log = not actor_log if log else actor_log
-                self.update_actor(state_batch, actor_log, metrics)
-        
+        self.update_actor(state_batch, log, metrics)
+
         if step%self.target_update_interval==0:
             utils.soft_update(self.critic_target, self.critic, self.tau)
 
@@ -146,6 +142,8 @@ class SacAgent:
 
         if log:
             metrics['mean_q_target'] = torch.mean(target_Q).item()
+            metrics['max_reward'] = torch.max(reward_batch).item()
+            metrics['min_reward'] = torch.min(reward_batch).item()
             metrics['variance_q_target'] = torch.var(target_Q).item()
             metrics['min_q_target'] = torch.min(target_Q).item()
             metrics['max_q_target'] = torch.max(target_Q).item()

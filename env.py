@@ -86,8 +86,6 @@ class docking_env(object):
 
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
-        self.selfies_batch = []
-        self.len_selfies_batch = []
 
         # Initialize Step
         self.t = 0
@@ -122,11 +120,11 @@ class docking_env(object):
                     
         if done:
             molecule_smiles = sf.decoder(self.molecule_selfie)
-            # pretty_selfies = sf.encoder(molecule_smiles)
-            # self.selfies_batch.append(pretty_selfies)
-            # self.len_selfies_batch.append(sf.len_selfies(pretty_selfies))
+            pretty_selfies = sf.encoder(molecule_smiles)
             info["episode"]["l"] = self.t
             info["episode"]["smiles"] = molecule_smiles
+            info["episode"]["seflies"] = pretty_selfies
+            info["episode"]["selfies_len"] = sf.len_selfies(pretty_selfies)
             reward = -1000
         else:
             reward = 0
@@ -138,16 +136,12 @@ class docking_env(object):
     def _reset_store_batch(self):
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
-        self.selfies_batch = []
-        self.len_selfies_batch = []
 
     def get_reward_batch(self):
         info = defaultdict(dict)
         docking_scores = self.predictor.predict(self.smiles_batch)
         reward_batch = np.clip(-np.array(docking_scores), a_min=0.0, a_max=None)
         info['smiles'] = self.smiles_batch
-        info['selfies'] = self.selfies_batch
-        info['len_selfies'] = self.len_selfies_batch
         info['docking_scores'] = docking_scores
         self._reset_store_batch()
         return reward_batch, info

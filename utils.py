@@ -105,6 +105,10 @@ class FreshReplayMemory():
         self.step_idx = last_episode_start_id % self.buffer_limit
         if self.full : self.full = not last_episode_start_id < 0
         
+    def update_last_episode_reward(self, reward):
+        self.reward[self.reward_indices[-1]] = reward
+        self.reward_indices.pop() 
+
     def update_final_rewards(self, reward_batch):
         self.reward[self.reward_indices] = reward_batch
  
