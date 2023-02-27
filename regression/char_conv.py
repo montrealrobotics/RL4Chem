@@ -33,8 +33,8 @@ def train(cfg):
     #get model
     cfg.vocab_size = len(vocab)
     cfg.pad_idx = vocab.pad
-    cfg.input_size = int(input_size)       #length of the maximum sequence in the dataset
-    model = hydra.utils.instantiate(cfg.charmlp)
+    cfg.input_size = int(input_size)
+    model = hydra.utils.instantiate(cfg.charconv)
     
     #set optimizer
     optimizer = optim.Adam(get_params(model), lr=cfg.lr)
@@ -100,8 +100,8 @@ def eval(model, val_loader):
 @hydra.main(config_path='cfgs', config_name='config', version_base=None)
 def main(cfg: DictConfig):
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
-    from char_mlp import train
-    cfg.model_name = 'char_mlp'
+    from char_conv import train
+    cfg.model_name = 'char_conv'
     if cfg.wandb_log:
         project_name = 'docking-regression-' + cfg.target
         wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir'])

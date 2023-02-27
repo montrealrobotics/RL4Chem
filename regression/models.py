@@ -24,6 +24,27 @@ class CharMLP(nn.Module):
         preds = self.fc_layer(x).squeeze(-1)
         return preds
     
+class CharConv(nn.Module):
+    def __init__(self, vocab_size, pad_idx, embedding_size, input_size, hidden_size, dropout, device):
+        super(CharConv, self).__init__()
+        self.device = device
+        self.input_size = input_size
+        self.embedding_size = embedding_size
+        self.embedding_layer = nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx).to(self.device)
+        self.convnet = nn.Sequential(nn.Conv1d(embedding_size, 16, kernel_size=9),
+                                     nn.ReLU(), nn.Conv1d(16, 8, kernel_size=9),
+                                     nn.ReLU(), nn.Conv1d(8, 4, kernel_size=9),
+                                     nn.ReLU(), nn.Conv1d(4, 2, kernel_size=9),
+                                     nn.ReLU()).to(self.device)
+        self.linear_layer = nn.Linear(198, 1).to(self.device)
+
+    def forward(self, x):
+        x = self.embedding_layer(x).view(-1, self.input_size * self.embedding_size).view(-1, self.embedding_size, self.input_size)        
+        x = self.convnet(x)
+        x = x.view(x.shape[0], -1)
+        preds = self.linear_layer(x).squeeze(-1)
+        return preds
+        
 class CharRNN(nn.Module):
     def __init__(self, vocab_size, pad_idx, embedding_size, num_layers, hidden_size, dropout, device):
         super(CharRNN, self).__init__()

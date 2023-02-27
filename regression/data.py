@@ -198,7 +198,7 @@ class StringDataset:
                 x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=self.vocab.pad).to(self.device) 
                 y = torch.tensor(y, dtype=torch.float32, device=self.device)
                 return x, y, lens
-        elif model_name == 'char_mlp':
+        elif model_name in ['char_mlp', 'char_conv']:
             def collate_fn(batch):
                 x, y = list(zip(*batch))
                 x = list(x)
