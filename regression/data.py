@@ -257,6 +257,9 @@ def get_data(cfg, get_max_len=False):
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=False, collate_fn=train_dataset.get_collate_fn(cfg.model_name))
 
     if get_max_len:
-        return train_loader, val_loader, vocab, max(train_dataset.max_len, val_dataset.max_len)
+        max_len = max(train_dataset.max_len, val_dataset.max_len)
+        train_dataset.max_len = max_len
+        val_dataset.max_len = max_len
+        return train_loader, val_loader, vocab, max_len
     else:
         return train_loader, val_loader, vocab

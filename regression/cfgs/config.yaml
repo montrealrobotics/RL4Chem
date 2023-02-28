@@ -43,7 +43,7 @@ charconv:
   pad_idx: ${pad_idx}
   device: ${device}
   hidden_size: 256
-  embedding_size: 256
+  embedding_size: 32
   input_size: ${input_size}
 
 #eval

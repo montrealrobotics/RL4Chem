@@ -37,7 +37,7 @@ class CharConv(nn.Module):
         self.linear_layer_2 = nn.Linear(hidden_size, 1).to(self.device)
 
     def forward(self, x):
-        x = self.embedding_layer(x).view(-1, self.input_size * self.embedding_size).view(-1, self.embedding_size, self.input_size)        
+        x = torch.transpose(self.embedding_layer(x), 1, 2)
         x = F.relu(self.convnet(x))
         x = x.view(x.shape[0], -1)
         x = F.relu(self.linear_layer_1(x))
