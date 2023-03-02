@@ -30,17 +30,22 @@ class CharConv(nn.Module):
         self.device = device
         self.input_size = input_size
         self.embedding_size = embedding_size
-        self.embedding_layer = nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx).to(self.device).to(self.device)
-        self.convnet = nn.Conv1d(in_channels=self.embedding_size, out_channels=self.embedding_size, kernel_size=10).to(self.device)
-        self.temp = (self.input_size - 10 + 1) * self.embedding_size
-        self.linear_layer_1 = nn.Linear(self.temp, hidden_size).to(self.device)
-        self.linear_layer_2 = nn.Linear(hidden_size, 1).to(self.device)
+        self.embedding_layer = nn.Embedding(vocab_size, embedding_size, padding_idx=pad_idx).to(self.device)
+        self.conv1d1 = nn.Conv1d(in_channels=self.embedding_size, out_channels=9, kernel_size=9).to(self.device)
+        self.conv1d2 = nn.Conv1d(9, 9, kernel_size=9).to(self.device)
+        self.conv1d3 = nn.Conv1d(9, 10, kernel_size=11).to(self.device)
+
+        self.temp = (self.input_size - 26) * 10
+        self.linear_layer_1 = nn.Linear(self.temp, 256).to(self.device)
+        self.linear_layer_2 = nn.Linear(256, 1).to(self.device)
 
     def forward(self, x):
         x = torch.transpose(self.embedding_layer(x), 1, 2)
-        x = F.relu(self.convnet(x))
+        x = F.relu(self.conv1d1(x))
+        x = F.relu(self.conv1d2(x))
+        x = F.relu(self.conv1d3(x))
         x = x.view(x.shape[0], -1)
-        x = F.relu(self.linear_layer_1(x))
+        x = F.selu(self.linear_layer_1(x))
         preds = self.linear_layer_2(x).squeeze(-1)
         return preds
         
