@@ -33,13 +33,14 @@ gamma: 0.99
 tau: 0.01
 target_update_interval: 1
 policy_update_interval: 2
-lr: {'actor':3e-4, 'critic':1e-3, 'alpha':1e-3}
+lr: {'encoder':3e-4, 'actor':3e-4, 'critic':1e-3, 'alpha':1e-3}
 
 #exploration
 entropy_coefficient: 0.1
 
 #hidden_dims and layers
 hidden_dims: 256
+latent_dims: 32
 
 #evaluation
 eval_episode_interval: 10000

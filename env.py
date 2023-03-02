@@ -224,7 +224,7 @@ if __name__ == '__main__':
     class args():
         target= 'fa7'
         selfies_enc_type= 'label'
-        max_selfie_length= 15
+        max_selfie_length= 40
         vina_program= 'qvina2'
         temp_dir= 'tmp'
         exhaustiveness= 1
@@ -235,7 +235,7 @@ if __name__ == '__main__':
         timeout_dock= 100
 
     env = docking_env(args)
-
+   
 '''
 ENV stats
 =======================================

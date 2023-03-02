@@ -8,14 +8,36 @@ import wandb
 import utils
 
 class NoiseAug(nn.Module):
-    def __init__(self, noise=0.95):
+    def __init__(self, noise=0.5):
         super().__init__()
         self.noise = noise
 
     def forward(self, x):
-        n, w = x.size()
-        x = x + torch.rand((n, w), device=x.device)
+        n, w, h = x.size()
+        x = x + torch.rand((n, w, h), device=x.device)
         return torch.clamp(x, max=1)
+
+class Encoder(nn.Module):
+    def __init__(self, vocab_size, padding_id, device):
+        super(Encoder, self).__init__()
+
+        # self.embedding = nn.Embedding(vocab_size, 64, padding_idx=padding_id)
+        self.embedding = nn.Embedding.from_pretrained(torch.eye(vocab_size, device=device), padding_idx=padding_id)
+
+        self.convnet = nn.Sequential(nn.Conv1d(vocab_size, 32, kernel_size=9),
+                                     nn.ReLU(), nn.Conv1d(32, 32, kernel_size=9),
+                                     nn.ReLU(), nn.Conv1d(32, 32, kernel_size=9),
+                                     nn.ReLU())
+        self.apply(utils.weight_init)
+        self.aug = NoiseAug()
+
+    def forward(self, x, aug=True):
+        x = self.embedding(x).view(-1, 70, 25)
+        if aug:
+            x = self.aug(x)
+        x = self.convnet(x)
+        x = x.view(x.shape[0], -1)
+        return x
 
 class Actor(nn.Module):
     def __init__(self, input_dims, hidden_dims, output_dims, dist='categorical'):
@@ -27,6 +49,7 @@ class Actor(nn.Module):
             nn.ReLU(), nn.Linear(hidden_dims, output_dims),
         )
         self.dist = dist
+        self.apply(utils.weight_init)
 
     def forward(self, x):
         logits = self.actor(x)
@@ -50,6 +73,7 @@ class Critic(nn.Module):
             nn.Linear(input_dims, hidden_dims), 
             nn.ReLU(), nn.Linear(hidden_dims, hidden_dims), nn.LayerNorm(hidden_dims),
             nn.ReLU(), nn.Linear(hidden_dims, output_dims))
+        self.apply(utils.weight_init)
 
     def forward(self, x):
         q1 = self.Q1(x)
@@ -57,9 +81,9 @@ class Critic(nn.Module):
         return q1, q2      
 
 class SacAgent:
-    def __init__(self, device, obs_dims, num_actions,
+    def __init__(self, device, obs_dims, num_actions, vocab_size, padding_id,
                 gamma, tau, policy_update_interval, target_update_interval, lr, batch_size, 
-                entropy_coefficient, hidden_dims, wandb_log, log_interval):
+                entropy_coefficient, latent_dims, hidden_dims, wandb_log, log_interval):
         '''To-do:
         Try straight through gradients for actor
         Add more implementation details like target actor, noisy td updates, increase critic learning rate
@@ -83,18 +107,19 @@ class SacAgent:
         self.wandb_log = wandb_log
         self.log_interval = log_interval
 
-        self._init_networks(obs_dims, num_actions, hidden_dims)
+        self._init_networks(obs_dims, num_actions, vocab_size, padding_id, latent_dims, hidden_dims)
         self._init_optims(lr)
     
     def get_action(self, obs, eval=False):
         with torch.no_grad():
-            obs = torch.FloatTensor(obs).to(self.device) 
+            obs = torch.LongTensor(obs).to(self.device)
+            obs = self.encoder(obs, aug=False) 
             action_dist = self.actor(obs)    
             action = action_dist.sample()            
             if eval:
                 action = action_dist.mode
                 
-        return action.cpu().numpy()
+        return action.cpu().numpy()[0]
     
     def update(self, buffer, step):
         metrics = dict()
@@ -110,6 +135,11 @@ class SacAgent:
         reward_batch = torch.tensor(reward_batch, dtype=torch.float32, device=self.device)
         done_batch = torch.tensor(done_batch, dtype=torch.float32, device=self.device)  
         discount_batch = self.gamma*(1-done_batch)
+
+        #encode
+        state_batch = self.encoder(state_batch)
+        with torch.no_grad():
+            next_state_batch = self.encoder(next_state_batch)
 
         self.update_critic(state_batch, action_batch, reward_batch, next_state_batch, discount_batch, log, metrics)
         self.update_actor(state_batch, log, metrics)
@@ -136,8 +166,10 @@ class SacAgent:
         Q2 = Q2.gather(1, action_batch.long()).flatten()
         
         critic_loss = (F.mse_loss(Q1, target_Q) + F.mse_loss(Q2, target_Q))/2   
+        self.encoder_opt.zero_grad()
         self.critic_opt.zero_grad()
         critic_loss.backward()
+        self.encoder_opt.step()
         self.critic_opt.step()
 
         if log:
@@ -178,11 +210,13 @@ class SacAgent:
             # metrics['alpha'] = self.alpha
             metrics['actor_entropy'] = action_entropy.detach().mean().item()
 
-    def _init_networks(self, obs_dims, num_actions, hidden_dims):
-        self.actor = Actor(obs_dims, hidden_dims, num_actions).to(self.device)
+    def _init_networks(self, obs_dims, num_actions, vocab_size, padding_id, latent_dims, hidden_dims):
+        self.encoder = Encoder(vocab_size, padding_id, self.device).to(self.device)
 
-        self.critic = Critic(obs_dims, hidden_dims, num_actions).to(self.device)
-        self.critic_target = Critic(obs_dims, hidden_dims, num_actions).to(self.device)
+        self.actor = Actor(latent_dims, hidden_dims, num_actions).to(self.device)
+
+        self.critic = Critic(latent_dims, hidden_dims, num_actions).to(self.device)
+        self.critic_target = Critic(latent_dims, hidden_dims, num_actions).to(self.device)
         utils.hard_update(self.critic_target, self.critic)
 
         # self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
@@ -191,6 +225,7 @@ class SacAgent:
     def _init_optims(self, lr):
         self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=lr['actor'])
         self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=lr['critic'])
+        self.encoder_opt = torch.optim.Adam(self.encoder.parameters(), lr=lr['encoder'])
         # self.alpha_optim = torch.optim.Adam([self.log_alpha], lr=lr['alpha'])
 
     def get_save_dict(self):

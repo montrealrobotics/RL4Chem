@@ -14,3 +14,4 @@ echo "moved code to slurm tmpdir"
 
 singularity exec --nv --home $SLURM_TMPDIR --env WANDB_API_KEY="7da29c1c6b185d3ab2d67e399f738f0f0831abfc",REQUESTS_CA_BUNDLE="/usr/local/envs/rl4chem/lib/python3.11/site-packages/certifi/cacert.pem",HYDRA_FULL_ERROR=1 $SCRATCH/rl4chem.sif bash -c "source activate rl4chem && cd RL4Chem &&\
 python train.py target=${array[SLURM_ARRAY_TASK_ID]} max_selfie_length=22 wandb_log=True wandb_run_name=ln_max_len_22 seed=3 num_sub_proc=20" 
+
