@@ -12,6 +12,7 @@ importlib-resources==5.10.2
 numpy==1.24.1
 omegaconf==2.3.0
 packaging==23.0
+pandas==1.5.3
 pathtools==0.1.2
 Pillow==9.4.0
 protobuf==4.21.12

@@ -1,5 +1,3 @@
-agent: 'sac'
-
 #common
 id: 'docking'
 device: 'cuda'
@@ -7,7 +5,7 @@ seed: 1
 
 #environment specific
 target: 'fa7'
-selfies_enc_type: 'one_hot'
+selfies_enc_type: 'index'
 max_selfie_length: 22
 vina_program: 'qvina2'
 temp_dir: 'tmp'
@@ -19,9 +17,8 @@ timeout_gen3d: 30
 timeout_dock: 100
 
 #data
-num_train_steps: 1000000
+num_train_steps: 100000
 env_buffer_size: 100000
-
 explore_molecules: 250
 parallel_molecules: 250
 batch_size: 256
@@ -29,27 +26,40 @@ obs_dtype:
 action_dtype:
 
 #learning
-gamma: 0.99
-tau: 0.01
-target_update_interval: 1
-policy_update_interval: 2
-lr: {'encoder':3e-4, 'actor':3e-4, 'critic':1e-3, 'alpha':1e-3}
+lr: {'actor':1e-4, 'reward':1e-4, 'alpha':1e-3}
+max_grad_norm: 0.5
+vocab_size:
+pad_idx:
 
-#exploration
-entropy_coefficient: 0.1
+#Actor
+actor:
+  _target_: mbac.Actor
+  vocab_size: ${vocab_size}
+  pad_idx: ${pad_idx}
+  device: ${device}
+  output_size: ${vocab_size}
+  num_layers: 3
+  hidden_size: 256
+  embedding_size: 32
 
-#hidden_dims and layers
-hidden_dims: 256
-latent_dims: 32
+#Reward
+reward:
+  _target_: mbac.Reward
+  vocab_size: ${vocab_size}
+  pad_idx: ${pad_idx}
+  device: ${device}
+  num_layers: 3
+  hidden_size: 256
+  embedding_size: 32
 
 #evaluation
 eval_episode_interval: 10000
-num_eval_episodes: 5
+num_eval_episodes: 5 
 
 #logging
 wandb_log: False
 wandb_entity: 'raj19'
-wandb_run_name: 'sac-disc'
+wandb_run_name: 'mbac-disc'
 agent_log_interval: 100
 
 #saving

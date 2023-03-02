@@ -6,6 +6,77 @@ from pathlib import Path
 from docking import DockingVina
 from collections import defaultdict
 
+class selfies_vocabulary(object):
+    def __init__(self, vocab_path=None):
+    
+        if vocab_path is None:
+            self.alphabet = sf.get_semantic_robust_alphabet()
+        else:
+            self.alphabet = set()
+            with open(vocab_path, 'r') as f:
+                chars = f.read().split()
+            for char in chars:
+                self.alphabet.add(char)
+
+        self.special_tokens = ['BOS', 'EOS', 'PAD', 'UNK']
+
+        self.alphabet_list = list(self.alphabet)
+        self.alphabet_list.sort()
+        self.alphabet_list = self.alphabet_list + self.special_tokens
+        self.alphabet_length = len(self.alphabet_list)
+
+        self.alphabet_to_idx = {s: i for i, s in enumerate(self.alphabet_list)}
+        self.idx_to_alphabet = {s: i for i, s in self.alphabet_to_idx.items()}
+
+    def tokenize(self, selfies, add_bos=False, add_eos=False):
+        """Takes a SELFIES and return a list of characters/tokens"""
+        tokenized = list(sf.split_selfies(selfies))
+        if add_bos:
+            tokenized.insert(0, "BOS")
+        if add_eos:
+            tokenized.append('EOS')
+        return tokenized
+
+    def encode(self, selfies, add_bos=False, add_eos=False):
+        """Takes a list of SELFIES and encodes to array of indices"""
+        char_list = self.tokenize(selfies, add_bos, add_eos)
+        encoded_selfies = np.zeros(len(char_list), dtype=np.uint8)
+        for i, char in enumerate(char_list):
+            encoded_selfies[i] = self.alphabet_to_idx[char]
+        return encoded_selfies
+
+    def decode(self, encoded_seflies, rem_bos=True, rem_eos=True):
+        """Takes an array of indices and returns the corresponding SELFIES"""
+        if rem_bos and encoded_seflies[0] == self.bos:
+            encoded_seflies = encoded_seflies[1:]
+        if rem_eos and encoded_seflies[-1] == self.eos:
+            encoded_seflies = encoded_seflies[:-1]
+            
+        chars = []
+        for i in encoded_seflies:
+            chars.append(self.idx_to_alphabet[i])
+        selfies = "".join(chars)
+        return selfies
+
+    def __len__(self):
+        return len(self.alphabet_to_idx)
+    
+    @property
+    def bos(self):
+        return self.alphabet_to_idx['BOS']
+    
+    @property
+    def eos(self):
+        return self.alphabet_to_idx['EOS']
+    
+    @property
+    def pad(self):
+        return self.alphabet_to_idx['PAD']
+    
+    @property
+    def unk(self):
+        return self.alphabet_to_idx['UNK']
+
 class docking_env(object):
     '''This environment is build assuming selfies version 2.1.1
     To-do
@@ -86,8 +157,6 @@ class docking_env(object):
 
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
-        self.selfies_batch = []
-        self.len_selfies_batch = []
 
         # Initialize Step
         self.t = 0
@@ -123,29 +192,27 @@ class docking_env(object):
         if done:
             molecule_smiles = sf.decoder(self.molecule_selfie)
             pretty_selfies = sf.encoder(molecule_smiles)
-
-            self.smiles_batch.append(molecule_smiles)
-            self.selfies_batch.append(pretty_selfies)
-            self.len_selfies_batch.append(sf.len_selfies(pretty_selfies))
             info["episode"]["l"] = self.t
+            info["episode"]["smiles"] = molecule_smiles
+            info["episode"]["seflies"] = pretty_selfies
+            info["episode"]["selfies_len"] = sf.len_selfies(pretty_selfies)
             reward = -1000
         else:
             reward = 0
         return self.enc_selifes_fn(self.molecule_selfie), reward, done, info
     
+    def _add_smiles_to_batch(self, molecule_smiles):
+        self.smiles_batch.append(molecule_smiles)
+
     def _reset_store_batch(self):
         # Intitialising smiles batch for parallel evaluation
         self.smiles_batch = []
-        self.selfies_batch = []
-        self.len_selfies_batch = []
 
     def get_reward_batch(self):
         info = defaultdict(dict)
         docking_scores = self.predictor.predict(self.smiles_batch)
         reward_batch = np.clip(-np.array(docking_scores), a_min=0.0, a_max=None)
         info['smiles'] = self.smiles_batch
-        info['selfies'] = self.selfies_batch
-        info['len_selfies'] = self.len_selfies_batch
         info['docking_scores'] = docking_scores
         self._reset_store_batch()
         return reward_batch, info
@@ -168,38 +235,7 @@ if __name__ == '__main__':
         timeout_dock= 100
 
     env = docking_env(args)
-    state = env.reset()
-    done = False 
-    while not done:
-        action = np.random.randint(env.num_actions)
-        next_state, reward, done, info = env.step(action)
-        print(next_state)
-        print('\n')
-
-    # next_state, reward, done, info = env.step(15)
-    # print(env.action_space[15])
-    # print(next_state)
-    # print(env.molecule_selfie)
-    # print(state)
-    # while not done:
-    #     action = np.random.randint(env.num_actions)
-    #     next_state, reward, done, info = env.step(action)
-    #     print(action)
-    #     print(env.alphabet_to_idx[env.action_space[action]])
-    #     print(next_state)
-    #     print('\n')
-
-    # possible_states = []
-    # for a1 in range(env.num_actions):
-    #     for a2 in range(env.num_actions):
-    #         env.reset()
-    #         env.step(a1)
-    #         env.step(a2)
-    
-    #     reward_batch, reward_info = env.get_reward_batch()
-    #     print(np.argmax(reward_batch), np.max(reward_batch))
-    #     print(reward_info['smiles'][np.argmax(reward_batch)])
-
+   
 '''
 ENV stats
 =======================================
