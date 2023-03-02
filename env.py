@@ -6,6 +6,77 @@ from pathlib import Path
 from docking import DockingVina
 from collections import defaultdict
 
+class selfies_vocabulary(object):
+    def __init__(self, vocab_path=None):
+    
+        if vocab_path is None:
+            self.alphabet = sf.get_semantic_robust_alphabet()
+        else:
+            self.alphabet = set()
+            with open(vocab_path, 'r') as f:
+                chars = f.read().split()
+            for char in chars:
+                self.alphabet.add(char)
+
+        self.special_tokens = ['BOS', 'EOS', 'PAD', 'UNK']
+
+        self.alphabet_list = list(self.alphabet)
+        self.alphabet_list.sort()
+        self.alphabet_list = self.alphabet_list + self.special_tokens
+        self.alphabet_length = len(self.alphabet_list)
+
+        self.alphabet_to_idx = {s: i for i, s in enumerate(self.alphabet_list)}
+        self.idx_to_alphabet = {s: i for i, s in self.alphabet_to_idx.items()}
+
+    def tokenize(self, selfies, add_bos=False, add_eos=False):
+        """Takes a SELFIES and return a list of characters/tokens"""
+        tokenized = list(sf.split_selfies(selfies))
+        if add_bos:
+            tokenized.insert(0, "BOS")
+        if add_eos:
+            tokenized.append('EOS')
+        return tokenized
+
+    def encode(self, selfies, add_bos=False, add_eos=False):
+        """Takes a list of SELFIES and encodes to array of indices"""
+        char_list = self.tokenize(selfies, add_bos, add_eos)
+        encoded_selfies = np.zeros(len(char_list), dtype=np.uint8)
+        for i, char in enumerate(char_list):
+            encoded_selfies[i] = self.alphabet_to_idx[char]
+        return encoded_selfies
+
+    def decode(self, encoded_seflies, rem_bos=True, rem_eos=True):
+        """Takes an array of indices and returns the corresponding SELFIES"""
+        if rem_bos and encoded_seflies[0] == self.bos:
+            encoded_seflies = encoded_seflies[1:]
+        if rem_eos and encoded_seflies[-1] == self.eos:
+            encoded_seflies = encoded_seflies[:-1]
+            
+        chars = []
+        for i in encoded_seflies:
+            chars.append(self.idx_to_alphabet[i])
+        selfies = "".join(chars)
+        return selfies
+
+    def __len__(self):
+        return len(self.alphabet_to_idx)
+    
+    @property
+    def bos(self):
+        return self.alphabet_to_idx['BOS']
+    
+    @property
+    def eos(self):
+        return self.alphabet_to_idx['EOS']
+    
+    @property
+    def pad(self):
+        return self.alphabet_to_idx['PAD']
+    
+    @property
+    def unk(self):
+        return self.alphabet_to_idx['UNK']
+
 class docking_env(object):
     '''This environment is build assuming selfies version 2.1.1
     To-do
