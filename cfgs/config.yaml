@@ -24,15 +24,15 @@ env_buffer_size: 100000
 
 explore_molecules: 250
 parallel_molecules: 250
-batch_size: 256
+batch_size: 128
 obs_dtype:
 action_dtype:
 
 #learning
 gamma: 0.99
-tau: 1.0
-update_interval: 10
-target_update_interval: 500
+tau: 0.01
+update_interval: 1
+target_update_interval: 1
 lr: {'q':2.5e-4}
 
 #hidden_dims and layers
@@ -45,7 +45,7 @@ num_eval_episodes: 5
 #logging
 wandb_log: False
 wandb_entity: 'raj19'
-wandb_run_name: 'sac-disc'
+wandb_run_name: 'dqn-disc'
 agent_log_interval: 100
 
 #saving
