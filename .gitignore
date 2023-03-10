@@ -13,7 +13,7 @@ MUJOCO_LOG.TXT
 saved/
 
 #virtual env
-env_rl4chem/
+env_*
 
 #notebooks
 .ipynb_checkpoints/
@@ -29,6 +29,7 @@ data/
 #package dependencies
 dockstring/
 openbabel.git
+oracle/
 
 #local experiments
 store_room/
