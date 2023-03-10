@@ -41,13 +41,6 @@ def make_agent(env, device, cfg):
         agent = SacAgent(device, obs_dims, num_actions, cfg.gamma, cfg.tau,
                         cfg.policy_update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, cfg.entropy_coefficient,
                         cfg.hidden_dims, cfg.wandb_log, cfg.agent_log_interval)
-    
-    elif cfg.agent == 'dqn':
-        from dqn import DQNAgent
-        agent = DQNAgent(device, obs_dims, num_actions, cfg.gamma, cfg.tau, 
-                         cfg.update_interval, cfg.target_update_interval, cfg.lr, cfg.batch_size, 
-                         cfg.hidden_dims, cfg.wandb_log, cfg.agent_log_interval)
-    
     else:
         raise NotImplementedError
     return agent, env_buffer, fresh_env_buffer, docking_buffer
@@ -104,20 +97,14 @@ def explore(cfg, train_env, env_buffer, fresh_env_buffer, docking_buffer):
 
     return parallel_reward_batch
 
-def collect_molecule(env, agent, fresh_env_buffer, train_step, num_train_steps):
+def collect_molecule(env, agent, fresh_env_buffer):
     state, done, t = env.reset(), False, 0
     while not done:
-        epsilon = utils.linear_schedule(1, 0.05, 0.5 * num_train_steps, train_step+t)
-        if random.random() < epsilon:
-            action = np.random.randint(env.num_actions)
-        else:
-            action = agent.get_action(state)
+        action = agent.get_action(state)
         next_state, reward, done, info = env.step(action)
         fresh_env_buffer.push((state, action, reward, next_state, done, t))
         t += 1
         state = next_state
-
-    info['episode']['last epsilon'] = epsilon
     return info['episode']
 
 def train(cfg):
@@ -141,7 +128,8 @@ def train(cfg):
     unique_molecule_counter = 0
     while train_step < cfg.num_train_steps:
         
-        episode_info = collect_molecule(train_env, agent, fresh_env_buffer, train_step, cfg.num_train_steps)
+
+        episode_info = collect_molecule(train_env, agent, fresh_env_buffer)
         molecule_counter += 1
         if docking_buffer[episode_info['smiles']] is not None:
             fresh_env_buffer.update_last_episode_reward(docking_buffer[episode_info['smiles']])
@@ -149,7 +137,7 @@ def train(cfg):
             docking_buffer[episode_info['smiles']] = 0
             train_env._add_smiles_to_batch(episode_info['smiles'])
             unique_molecule_counter += 1
-        
+
         for _ in range(episode_info['l']):
             agent.update(env_buffer, train_step)
             train_step += 1
