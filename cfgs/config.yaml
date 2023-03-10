@@ -1,4 +1,4 @@
-agent: 'sac'
+agent: 'dqn'
 
 #common
 id: 'docking'
@@ -30,13 +30,10 @@ action_dtype:
 
 #learning
 gamma: 0.99
-tau: 0.01
-target_update_interval: 1
-policy_update_interval: 2
-lr: {'actor':3e-4, 'critic':1e-3, 'alpha':1e-3}
-
-#exploration
-entropy_coefficient: 0.1
+tau: 1.0
+update_interval: 10
+target_update_interval: 500
+lr: {'q':2.5e-4}
 
 #hidden_dims and layers
 hidden_dims: 256
