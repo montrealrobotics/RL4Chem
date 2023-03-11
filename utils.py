@@ -5,25 +5,6 @@ from typing import Iterable
 from collections import namedtuple, deque
 
 # Replay memory
-
-Transition = namedtuple('Transition',
-                        ('action', 'next_state', 'reward', 'length'))
-
-class ReplayBuffer(object):
-
-    def __init__(self, capacity):
-        self.memory = deque([], maxlen=capacity)
-    
-    def push(self, *args):
-        """Save a transition"""
-        self.memory.append(Transition(*args))
-
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
-
-    def __len__(self):
-        return len(self.memory)
-
 class ReplayMemory():
     def __init__(self, buffer_limit, obs_dims, obs_dtype, action_dtype):
         self.buffer_limit = buffer_limit
@@ -81,7 +62,7 @@ class ReplayMemory():
 
     def __len__(self):
         return self.buffer_limit if self.full else self.idx+1
-    
+
 class FreshReplayMemory():
     def __init__(self, num_episodes, max_episode_len, obs_dims, obs_dtype, action_dtype):
         self.obs_dtype = obs_dtype
