@@ -1,45 +1,10 @@
 __pycache__/
-
-# logging
-checkpoint/
-
-#saved binaries
-checkpoints/
-
-#mujoco log files
-MUJOCO_LOG.TXT
-
-#saved binaries
+ #saved binaries
 saved/
 
 #virtual env
 env_*
 
-#notebooks
-.ipynb_checkpoints/
-store_notebooks/
-
-#datasets
-datasets/
-filtered_data/
-docked_data/
-raw_data/
-data/
-
-#package dependencies
-dockstring/
-openbabel.git
-oracle/
-
 #local experiments
-store_room/
 local_exp/
 wandb/
-tmp/
-
-#tests
-test/
-
-#results
-results
-results.txt

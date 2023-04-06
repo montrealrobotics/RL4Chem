@@ -1,0 +1,29 @@
+agent_name: dataset_agent
+data_file: data/dockstring-dataset.tsv
+log_results: True
+output_dir: 
+
+#docking
+oracle: "F2"
+num_sub_proc: 12
+
+#learning
+seed: 1
+device: cuda
+max_oracle_calls: 10000
+batch_size: 64
+
+#logging
+wandb_log: False
+wandb_entity: raj19
+wandb_run_name: dockstring_dataset
+freq_log: 100
+
+#saving
+save_snapshot: False
+
+hydra:
+  run:
+    dir: ./local_exp/${agent_name}/${now:%Y.%m.%d}/${now:%H.%M.%S}_${seed}
+  job:
+    chdir: False
