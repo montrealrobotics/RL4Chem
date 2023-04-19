@@ -5,7 +5,6 @@ import hydra
 import torch
 import random
 import numpy as np
-from dockstring import load_target
 from omegaconf import DictConfig
 from optimizer import BaseOptimizer
 from pathlib import Path
@@ -21,8 +20,8 @@ class dataset_optimizer(BaseOptimizer):
         super().__init__(cfg)
         self.agent_name = cfg.agent_name
 
-    def _optimize(self, oracle, cfg):
-        self.oracle.assign_target(oracle)
+    def _optimize(self, cfg):
+        self.oracle.assign_target(cfg)
         device = torch.device(cfg.device)
         
         import pandas as pd
@@ -57,10 +56,8 @@ def main(cfg: DictConfig):
     set_seed(cfg.seed)
     cfg.output_dir = hydra_cfg['runtime']['output_dir']
 
-    target = load_target(cfg.oracle)
-
     optimizer = dataset_optimizer(cfg)
-    optimizer.optimize(target, cfg, seed=cfg.seed)
+    optimizer.optimize(cfg, seed=cfg.seed)
 
 if __name__ == '__main__':
     main()

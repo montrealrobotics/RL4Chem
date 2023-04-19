@@ -4,7 +4,7 @@ import yaml
 import wandb
 import numpy as np
 from rdkit import Chem
-from dockstring import load_target
+from docking import DockingVina
 
 def top_auc(buffer, top_n, finish, freq_log, max_oracle_calls):
     sum = 0
@@ -49,8 +49,35 @@ class Oracle:
     def budget(self):
         return self.max_oracle_calls
 
-    def assign_target(self, target):
-        self.target = target
+    def assign_target(self, cfg):
+        docking_config = dict()
+        if cfg.target == 'fa7':
+            box_center = (10.131, 41.879, 32.097)
+            box_size = (20.673, 20.198, 21.362)
+            docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/fa7/receptor.pdbqt'
+        elif self.target == 'parp1':
+            box_center = (26.413, 11.282, 27.238)
+            box_size = (18.521, 17.479, 19.995)
+            docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/parp1/receptor.pdbqt'
+        elif self.target == '5ht1b':
+            box_center = (-26.602, 5.277, 17.898)
+            box_size = (22.5, 22.5, 22.5)
+            docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/5ht1b/receptor.pdbqt'
+        else:
+            raise NotImplementedError
+
+        box_parameter = (box_center, box_size)
+        docking_config['box_parameter'] = box_parameter
+        docking_config['vina_program'] = cfg.vina_program
+        docking_config['temp_dir'] = cfg.temp_dir
+        docking_config['exhaustiveness'] = cfg.exhaustiveness
+        docking_config['num_sub_proc'] = cfg.num_sub_proc
+        docking_config['num_cpu_dock'] = cfg.num_cpu_dock
+        docking_config['num_modes'] = cfg.num_modes
+        docking_config['timeout_gen3d'] = cfg.timeout_gen3d
+        docking_config['timeout_dock'] = cfg.timeout_dock
+
+        self.target = DockingVina(docking_config)
     
     def sort_buffer(self):
         self.mol_buffer = dict(sorted(self.mol_buffer.items(), key=lambda kv: kv[1][0], reverse=True))
@@ -136,7 +163,7 @@ class Oracle:
                 new_smiles.append((smi))
                 new_smiles_ptrs.append((i))
 
-        new_smiles_scores = self.target.predict(new_smiles, self.num_sub_proc)
+        new_smiles_scores = self.target.predict(new_smiles)
         
         for smi, ptr, sc in zip(new_smiles, new_smiles_ptrs, new_smiles_scores):
             if sc == 99.0:

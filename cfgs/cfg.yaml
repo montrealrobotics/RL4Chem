@@ -4,8 +4,15 @@ log_results: True
 output_dir: 
 
 #docking
-oracle: "F2"
+target: 'fa7'
+vina_program: 'qvina2'
+temp_dir: 'tmp'
+exhaustiveness: 1
 num_sub_proc: 12
+num_cpu_dock: 1
+num_modes: 10
+timeout_gen3d: 30
+timeout_dock: 100
 
 #learning
 seed: 1

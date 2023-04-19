@@ -67,9 +67,9 @@ class BaseOptimizer:
     def finish(self):
         return self.oracle.finish
 
-    def _optimize(self, oracle, config):
+    def _optimize(self, config):
         raise NotImplementedError
 
-    def optimize(self, oracle, config, seed):
-        self.oracle.task_label = self.agent_name + "_" + oracle.name + "_" + str(seed)
-        self._optimize(oracle, config)
+    def optimize(self, config, seed):
+        self.oracle.task_label = self.agent_name + "_" + config.target + "_" + str(seed)
+        self._optimize(config)
