@@ -136,6 +136,8 @@ class Oracle:
                 new_smiles.append((smi))
                 new_smiles_ptrs.append((i))
 
+        # import pdb; pdb.set_trace()
+
         new_smiles_scores = self.target.predict(new_smiles, self.num_sub_proc)
         
         for smi, ptr, sc in zip(new_smiles, new_smiles_ptrs, new_smiles_scores):
