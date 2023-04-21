@@ -11,3 +11,9 @@ wandb/
 
 #docking
 tmp/
+
+#dataset
+data/
+
+#pmo oracles
+oracle/

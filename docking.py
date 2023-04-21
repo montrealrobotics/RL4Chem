@@ -157,7 +157,7 @@ class DockingVina(object):
             affinity = affinity_list[0]
             return_dict[idx] = affinity
 
-    def predict(self, smiles_list):
+    def __call__(self, smiles_list):
         """
             input SMILES list
             output affinity list corresponding to the SMILES list
