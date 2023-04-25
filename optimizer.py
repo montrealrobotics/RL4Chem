@@ -5,18 +5,17 @@ import wandb
 import numpy as np
 from tdc import Oracle
 from rdkit import Chem
-from docking import DockingVina
 
-def top_auc(buffer, top_n, finish, freq_log, max_oracle_calls):
+def top_auc(buffer, top_n, finish, env_log_interval, max_oracle_calls):
     sum = 0
     prev = 0
     called = 0
     ordered_results = list(sorted(buffer.items(), key=lambda kv: kv[1][1], reverse=False))
-    for idx in range(freq_log, min(len(buffer), max_oracle_calls), freq_log):
+    for idx in range(env_log_interval, min(len(buffer), max_oracle_calls), env_log_interval):
         temp_result = ordered_results[:idx]
         temp_result = list(sorted(temp_result, key=lambda kv: kv[1][0], reverse=True))[:top_n]
         top_n_now = np.mean([item[1][0] for item in temp_result])
-        sum += freq_log * (top_n_now + prev) / 2
+        sum += env_log_interval * (top_n_now + prev) / 2
         prev = top_n_now
         called = idx
     temp_result = list(sorted(ordered_results, key=lambda kv: kv[1][0], reverse=True))[:top_n]
@@ -29,7 +28,7 @@ def top_auc(buffer, top_n, finish, freq_log, max_oracle_calls):
 class BaseOptimizer:
     def __init__(self, cfg=None):
         self.cfg = cfg
-        self.model = cfg.model
+        self.model_name = cfg.model_name
         self.target_name = cfg.target
         
         # defining target oracles
@@ -41,7 +40,7 @@ class BaseOptimizer:
         self.filter = tdc.chem_utils.oracle.filter.MolFilter(filters = ['PAINS', 'SureChEMBL', 'Glaxo'], property_filters_flag = False)
 
         self.max_oracle_calls = cfg.max_oracle_calls
-        self.freq_log = cfg.freq_log
+        self.env_log_interval = cfg.env_log_interval
         
         # store all unique molecules
         self.mol_buffer = dict()
@@ -60,6 +59,7 @@ class BaseOptimizer:
     
     def assign_target(self, cfg):
         if cfg.task == 'docking':
+            from docking import DockingVina
             docking_config = dict()
             if self.target_name == 'fa7':
                 box_center = (10.131, 41.879, 32.097)
@@ -98,6 +98,21 @@ class BaseOptimizer:
         else:
             raise NotImplementedError
     
+    def define_wandb_metrics(self):
+        #new wandb metric
+        wandb.define_metric("num_molecules")
+        wandb.define_metric("avg_top1", step_metric="num_molecules")
+        wandb.define_metric("avg_top10", step_metric="num_molecules")
+        wandb.define_metric("avg_top100", step_metric="num_molecules")
+        wandb.define_metric("auc_top1", step_metric="num_molecules")
+        wandb.define_metric("auc_top10", step_metric="num_molecules")
+        wandb.define_metric("auc_top100", step_metric="num_molecules")
+        wandb.define_metric("avg_sa", step_metric="num_molecules")
+        wandb.define_metric("diversity_top100", step_metric="num_molecules")
+        wandb.define_metric("n_oracle", step_metric="num_molecules")
+        wandb.define_metric("invalid_count", step_metric="num_molecules")
+
+    
     def predict(self, smiles_lst):
         """
         Score
@@ -124,7 +139,7 @@ class BaseOptimizer:
 
             score_list[ptr] = sc       
 
-            if len(self.mol_buffer) % self.freq_log == 0 and len(self.mol_buffer) > self.last_log:
+            if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
                 self.sort_buffer()
                 self.log_intermediate()
                 self.last_log = len(self.mol_buffer)
@@ -196,9 +211,9 @@ class BaseOptimizer:
                 "avg_top1": avg_top1, 
                 "avg_top10": avg_top10, 
                 "avg_top100": avg_top100, 
-                "auc_top1": top_auc(self.mol_buffer, 1, finish, self.freq_log, self.max_oracle_calls),
-                "auc_top10": top_auc(self.mol_buffer, 10, finish, self.freq_log, self.max_oracle_calls),
-                "auc_top100": top_auc(self.mol_buffer, 100, finish, self.freq_log, self.max_oracle_calls),
+                "auc_top1": top_auc(self.mol_buffer, 1, finish, self.env_log_interval, self.max_oracle_calls),
+                "auc_top10": top_auc(self.mol_buffer, 10, finish, self.env_log_interval, self.max_oracle_calls),
+                "auc_top100": top_auc(self.mol_buffer, 100, finish, self.env_log_interval, self.max_oracle_calls),
                 "avg_sa": avg_sa,
                 "diversity_top100": diversity_top100,
                 "n_oracle": n_calls,

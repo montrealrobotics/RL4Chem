@@ -1,55 +1,107 @@
-import os
 import re
-import torch
-import pickle
 import numpy as np
-import pandas as pd
-from rdkit import Chem
-from tdc.generation import MolGen
-from rdkit.Chem import MolToSmiles as mol2smi
-from rdkit.Chem import MolFromSmiles as smi2mol
+import selfies as sf
 
-class DockstringDataset:
-    def __init__(self, vocab, add_bos, add_eos, device, data_file='data/docking-dataset.tsv', split_file='data/dockstring_split.tsv', train=True):
-        dockstring_df = pd.read_csv(data_file, sep="\t")
-        dockstring_splits = pd.read_csv(split_file, sep="\t")        
-
-        if train:
-            self.data = dockstring_df[dockstring_splits["split"] == "train"].smiles.tolist()
-        else:
-            self.data = dockstring_df[dockstring_splits["split"] == "test"].smiles.tolist()     
-
-        self.vocab = vocab
-        self.encoded_data = [vocab.encode(s, add_bos, add_eos) for s in self.data]
-        self.len = [len(s) for s in self.encoded_data]
-        self.max_len = np.max(self.len)
-        self.device = device        
-    
-    def __len__(self):
-        """
-        Computes a number of objects in the dataset
-        """
-        return len(self.data)
-   
-    def __getitem__(self, index):
-        encoded_tensor = torch.tensor(self.encoded_data[index], dtype=torch.long)
-        return encoded_tensor[:-1], encoded_tensor[1:]
-
-    def get_collate_fn(self, model_name):
-        if model_name == 'char_rnn':
-            def collate_fn(batch):
-                x, next_x = list(zip(*batch))
-                lens = [len(s) for s in x]               
-                x = torch.nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=self.vocab.pad).to(self.device)
-                next_x = torch.nn.utils.rnn.pad_sequence(next_x, batch_first=True, padding_value=self.vocab.pad).to(self.device)
-                return x, next_x, lens
-        else:
-            raise NotImplementedError
+class selfies_vocabulary(object):
+    def __init__(self, vocab_path):
         
-        return collate_fn
+        self.alphabet = set()
+        with open(vocab_path, 'r') as f:
+            chars = f.read().split()
+        for char in chars:
+            self.alphabet.add(char)
+        
+        self.special_tokens = ['[EOS]', '[BOS]', '[PAD]', '[UNK]']
+
+        self.alphabet_list = list(self.alphabet)
+        self.alphabet_list.sort()
+        self.alphabet_list = self.alphabet_list + self.special_tokens
+        self.alphabet_length = len(self.alphabet_list)
+
+        self.alphabet_to_idx = {s: i for i, s in enumerate(self.alphabet_list)}
+        self.idx_to_alphabet = {s: i for i, s in self.alphabet_to_idx.items()}
+
+        self.action_list = self.alphabet_list[:-3]
+        self.action_length = len(self.action_list)
+
+        self.special_tokens_idx = [self.eos, self.bos, self.pad, self.unk]
     
+    def tokenize(self, selfies, add_bos=False, add_eos=False):
+        """Takes a SMILES and return a list of characters/tokens"""
+        char_list = sf.split_selfies(selfies)
+        tokenized = []
+        for char in char_list:
+            if char.startswith('['):
+                tokenized.append(char)
+            else:
+                chars = [unit for unit in char]
+                [tokenized.append(unit) for unit in chars]
+        for char in char_list:
+            tokenized.append(char)
+        if add_bos:
+            tokenized.insert(0, "[BOS]")
+        if add_eos:
+            tokenized.append('[EOS]')
+        return tokenized
+
+    def encode(self, selfies, add_bos=False, add_eos=False):
+        """Takes a list of SELFIES and encodes to array of indices"""
+        char_list = self.tokenize(selfies, add_bos, add_eos)
+        encoded_selfies = np.zeros(len(char_list), dtype=np.uint8)
+        for i, char in enumerate(char_list):
+            encoded_selfies[i] = self.alphabet_to_idx[char]
+        return encoded_selfies
+
+    def decode(self, encoded_selfies, rem_bos=True, rem_eos=True):
+        """Takes an list of indices and returns the corresponding SELFIES"""
+        if rem_bos and encoded_selfies[0] == self.bos:
+            encoded_selfies = encoded_selfies[1:]
+        if rem_eos and encoded_selfies[-1] == self.eos:
+            encoded_selfies = encoded_selfies[:-1]
+            
+        chars = []
+        for i in encoded_selfies:
+            chars.append(self.idx_to_alphabet[i])
+        selfies = "".join(chars)
+        smiles = sf.decoder(selfies)
+        return smiles
+    
+    def decode_padded(self, encoded_selfies, rem_bos=True):
+        """Takes a padded array of indices which might contain special tokens and returns the corresponding SMILES"""
+        if rem_bos and encoded_selfies[0] == self.bos:
+            encoded_selfies = encoded_selfies[1:]
+        
+        chars = []
+        for i in encoded_selfies:
+            if i == self.eos: break
+
+            if i not in self.special_tokens_idx: chars.append(self.idx_to_alphabet[i])
+            
+        selfies = "".join(chars)
+        smiles = sf.decoder(selfies)
+        return smiles
+
+    def __len__(self):
+        return len(self.alphabet_to_idx)
+    
+    @property
+    def bos(self):
+        return self.alphabet_to_idx['[BOS]']
+    
+    @property
+    def eos(self):
+        return self.alphabet_to_idx['[EOS]']
+    
+    @property
+    def pad(self):
+        return self.alphabet_to_idx['[PAD]']
+    
+    @property
+    def unk(self):
+        return self.alphabet_to_idx['[UNK]']
+        
 class smiles_vocabulary(object):
-    def __init__(self, vocab_path='data/docstring_smiles_vocab.txt'):
+    def __init__(self, vocab_path):
         
         self.alphabet = set()
         with open(vocab_path, 'r') as f:
@@ -66,7 +118,9 @@ class smiles_vocabulary(object):
 
         self.alphabet_to_idx = {s: i for i, s in enumerate(self.alphabet_list)}
         self.idx_to_alphabet = {s: i for i, s in self.alphabet_to_idx.items()}
-    
+
+        self.special_tokens_idx = [self.eos, self.bos, self.pad, self.unk]
+        
     def tokenize(self, smiles, add_bos=False, add_eos=False):
         """Takes a SMILES and return a list of characters/tokens"""
         regex = '(\[[^\[\]]{1,6}\])'
@@ -115,7 +169,9 @@ class smiles_vocabulary(object):
         chars = []
         for i in encoded_smiles:
             if i == self.eos: break
-            chars.append(self.idx_to_alphabet[i])
+
+            if i not in self.special_tokens_idx: chars.append(self.idx_to_alphabet[i])
+
         smiles = "".join(chars)
         smiles = smiles.replace("L", "Cl").replace("R", "Br")
         return smiles

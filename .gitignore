@@ -17,3 +17,6 @@ data/
 
 #pmo oracles
 oracle/
+
+#results.py
+results.py

@@ -1,9 +1,11 @@
-agent_name: dataset_agent
-task:
-model: 'dataset'
+agent_name: reinforce
+model_name: char_rnn
+dataset: zinc250k
+rep: smiles
+task: pmo
+target: qed
 
-#docking
-target: 
+#docking specific
 vina_program: 'qvina2'
 temp_dir: 'tmp'
 exhaustiveness: 1
@@ -13,19 +15,27 @@ num_modes: 10
 timeout_gen3d: 30
 timeout_dock: 100
 
-#pmo
-
 #learning
 seed: 1
 device: cuda
-max_oracle_calls: 500
+max_oracle_calls: 25000
+max_strings: 40000
 batch_size: 100
+max_len: 100
+patience: 5
+
+#rnn model
+num_layers: 3
+hidden_size: 512
+embedding_size: 128
+saved_name: final_1.pt
 
 #logging
 wandb_log: False
 wandb_entity: raj19
-wandb_run_name: dockstring_dataset
-freq_log: 100
+wandb_run_name: ${agent_name}_${seed}
+train_log_interval: 4
+env_log_interval: 100
 
 #saving
 save_snapshot: False
