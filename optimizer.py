@@ -92,9 +92,11 @@ class BaseOptimizer:
             docking_config['timeout_dock'] = cfg.timeout_dock
 
             self.target = DockingVina(docking_config)
+            self.predict = self.predict_docking
 
         elif cfg.task == 'pmo':
             self.target = Oracle(name = self.target_name)
+            self.predict = self.predict_pmo
         else:
             raise NotImplementedError
     
@@ -112,8 +114,43 @@ class BaseOptimizer:
         wandb.define_metric("n_oracle", step_metric="num_molecules")
         wandb.define_metric("invalid_count", step_metric="num_molecules")
 
-    
-    def predict(self, smiles_lst):
+    def score_pmo(self, smi):
+        """
+        Function to score one molecule
+        Argguments:
+            smi: One SMILES string represnets a moelcule.
+        Return:
+            score: a float represents the property of the molecule.
+        """
+        if len(self.mol_buffer) > self.max_oracle_calls:
+            return 0
+        if smi is None:
+            return 0
+        mol = Chem.MolFromSmiles(smi)
+        if mol is None or len(smi) == 0:
+            self.invalid_count += 1
+            return 0.0
+        else:
+            smi = Chem.MolToSmiles(mol)
+            if smi in self.mol_buffer:
+                pass
+            else:
+                self.mol_buffer[smi] = [float(self.target(smi)), len(self.mol_buffer)+1]
+            return self.mol_buffer[smi][0]
+        
+    def predict_pmo(self, smiles_list):
+        assert type(smiles_list) == list
+        score_list = []
+        for smi in smiles_list:
+            score_list.append(self.score_pmo(smi))
+            if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
+                self.sort_buffer()
+                self.log_intermediate()
+                self.last_log = len(self.mol_buffer)
+        
+        return score_list
+
+    def predict_docking(self, smiles_lst):
         """
         Score
         """
@@ -216,7 +253,7 @@ class BaseOptimizer:
                 "auc_top100": top_auc(self.mol_buffer, 100, finish, self.env_log_interval, self.max_oracle_calls),
                 "avg_sa": avg_sa,
                 "diversity_top100": diversity_top100,
-                "n_oracle": n_calls,
+                "num_molecules": n_calls,
             })
     
     def _analyze_results(self, results):

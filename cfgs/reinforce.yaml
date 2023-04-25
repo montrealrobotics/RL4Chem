@@ -20,9 +20,15 @@ seed: 1
 device: cuda
 max_oracle_calls: 25000
 max_strings: 40000
-batch_size: 100
-max_len: 100
 patience: 5
+
+learning_rate: 0.0005
+batch_size: 64
+max_len: 100
+
+#loss
+clip_coef: 0.2
+lp_coef: 5
 
 #rnn model
 num_layers: 3
