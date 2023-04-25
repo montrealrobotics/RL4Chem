@@ -1,4 +1,4 @@
-agent_name: reinforce
+agent_name: ac
 model_name: char_rnn
 dataset: zinc250k
 rep: smiles

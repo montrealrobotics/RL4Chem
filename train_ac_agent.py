@@ -111,7 +111,8 @@ class ac_optimizer(BaseOptimizer):
         # Calculate gradients and make an update to the network weights
         self.optimizer.zero_grad()
         loss.backward()
-        grad_norm = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
+        actor_grad_norm = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
+        critic_grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
         self.optimizer.step()
 
         if log:
@@ -122,7 +123,8 @@ class ac_optimizer(BaseOptimizer):
             metrics['pg_loss'] = loss_pg.item()       
             metrics['agent_likelihood'] = logprobs.sum(0).mean().item()
             metrics['agent_old_likelihood'] = old_logprobs.sum(0).mean().item()
-            metrics['grad_norm'] = grad_norm.item() 
+            metrics['actor_grad_norm'] = actor_grad_norm.item() 
+            metrics['critic_grad_norm'] = critic_grad_norm.item() 
             metrics['smiles_len'] = episode_lens.float().mean().item()
             metrics['v_loss'] = v_loss
             metrics['v_bias'] = F.mse_loss(returns_new, rev_returns)
@@ -163,7 +165,7 @@ class ac_optimizer(BaseOptimizer):
 
             with torch.no_grad():
                 # sample experience
-                obs, rewards, old_logprobs, values, nonterms, episode_lens = self.actor.get_data(self.critic, cfg.batch_size, cfg.max_len, self.device)
+                obs, rewards, old_logprobs, old_values, nonterms, episode_lens = self.actor.get_data(self.critic, cfg.batch_size, cfg.max_len, self.device)
 
             smiles_list = []
             for en_sms in obs.cpu().numpy().T:
@@ -207,9 +209,9 @@ class ac_optimizer(BaseOptimizer):
                 wandb.log(metrics)
 
             rewards = rewards * scores
-            self.update(obs, rewards, old_logprobs, values, nonterms, episode_lens, cfg, metrics, log)
+            self.update(obs, rewards, old_logprobs, old_values, nonterms, episode_lens, cfg, metrics, log)
         
-@hydra.main(config_path='cfgs', config_name='reinforce', version_base=None)
+@hydra.main(config_path='cfgs', config_name='ac', version_base=None)
 def main(cfg: DictConfig):
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
     
