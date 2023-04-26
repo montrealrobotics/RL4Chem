@@ -73,9 +73,12 @@ class reinforce_optimizer(BaseOptimizer):
         loss_pg1 = -advantages * ratio
         loss_pg2 = -advantages * torch.clamp(ratio, 1 - cfg.clip_coef, 1 + cfg.clip_coef)
 
+        # loss_pg = masked_mean(torch.max(loss_pg1, loss_pg2), mask=nonterms[:-1], axis=0).mean()
+        # loss_p = masked_mean(logprobs, mask=nonterms[:-1], axis=0).mean()
+        # loss = loss_pg + cfg.lp_coef * loss_p 
+
         loss_pg = torch.max(loss_pg1, loss_pg2).sum(0, keepdim=True).mean()
         loss_p = - (1 / logprobs.sum(0, keepdim=True)).mean()
-                
         loss = loss_pg + cfg.lp_coef * loss_p 
 
         # Calculate gradients and make an update to the network weights
@@ -111,16 +114,10 @@ class reinforce_optimizer(BaseOptimizer):
 
         self._init(cfg)
 
-        patience = 0
         train_steps = 0
         eval_strings = 0
         metrics = dict() 
         while eval_strings < cfg.max_strings:
-            if len(self) > 100:
-                self.sort_buffer()
-                old_scores = [item[1][0] for item in list(self.mol_buffer.items())[:100]]
-            else:
-                old_scores = 0
 
             with torch.no_grad():
                 # sample experience
@@ -137,19 +134,6 @@ class reinforce_optimizer(BaseOptimizer):
             if self.finish:
                 print('max oracle hit')
                 break 
-
-            # early stopping
-            if len(self) > 1000:
-                self.sort_buffer()
-                new_scores = [item[1][0] for item in list(self.mol_buffer.items())[:100]]
-                if new_scores == old_scores:
-                    patience += 1
-                    if patience >= self.cfg.patience*2:
-                        self.log_intermediate(finish=True)
-                        print('convergence criteria met, abort ...... ')
-                        break
-                else:
-                    patience = 0
 
             train_steps += 1
             eval_strings += cfg.batch_size

@@ -20,7 +20,6 @@ seed: 1
 device: cuda
 max_oracle_calls: 25000
 max_strings: 40000
-patience: 5
 
 learning_rate: 0.0005
 batch_size: 64

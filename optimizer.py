@@ -45,10 +45,14 @@ class BaseOptimizer:
         # store all unique molecules
         self.mol_buffer = dict()
 
+        self.mean_score = 0
+
         #logging counters
         self.last_log = 0
+        self.total_count = 0
         self.invalid_count = 0
-    
+        self.redundant_count = 0
+        
     @property
     def budget(self):
         return self.max_oracle_calls
@@ -113,6 +117,7 @@ class BaseOptimizer:
         wandb.define_metric("diversity_top100", step_metric="num_molecules")
         wandb.define_metric("n_oracle", step_metric="num_molecules")
         wandb.define_metric("invalid_count", step_metric="num_molecules")
+        wandb.define_metric("redundant_count", step_metric="num_molecules")
 
     def score_pmo(self, smi):
         """
@@ -134,12 +139,14 @@ class BaseOptimizer:
             smi = Chem.MolToSmiles(mol)
             if smi in self.mol_buffer:
                 pass
+                self.redundant_count += 1
             else:
                 self.mol_buffer[smi] = [float(self.target(smi)), len(self.mol_buffer)+1]
             return self.mol_buffer[smi][0]
         
     def predict_pmo(self, smiles_list):
         assert type(smiles_list) == list
+        self.total_count += len(smiles_list)
         score_list = []
         for smi in smiles_list:
             score_list.append(self.score_pmo(smi))
@@ -147,20 +154,22 @@ class BaseOptimizer:
                 self.sort_buffer()
                 self.log_intermediate()
                 self.last_log = len(self.mol_buffer)
-        
+        self.mean_score = np.mean(score_list)
         return score_list
 
-    def predict_docking(self, smiles_lst):
+    def predict_docking(self, smiles_list):
         """
         Score
         """
-        assert type(smiles_lst) == list
-        score_list = [None] * len(smiles_lst)
+        assert type(smiles_list) == list
+        self.total_count += len(smiles_list)
+        score_list = [None] * len(smiles_list)
         new_smiles = []
         new_smiles_ptrs = []
-        for i, smi in enumerate(smiles_lst):
+        for i, smi in enumerate(smiles_list):
             if smi in self.mol_buffer:
                 score_list[i] = self.mol_buffer[smi][0]
+                self.redundant_count += 1
             else:
                 new_smiles.append((smi))
                 new_smiles_ptrs.append((i))
@@ -180,7 +189,7 @@ class BaseOptimizer:
                 self.sort_buffer()
                 self.log_intermediate()
                 self.last_log = len(self.mol_buffer)
-
+        self.mean_score = np.mean(score_list)
         return score_list
 
     def optimize(self, cfg):
@@ -236,12 +245,16 @@ class BaseOptimizer:
         diversity_top100 = self.diversity_evaluator(smis)
 
         print(f'{n_calls}/{self.max_oracle_calls} | '
-                f'avg_top1: {avg_top1:.3f} | '
-                f'avg_top10: {avg_top10:.3f} | '
-                f'avg_top100: {avg_top100:.3f} | '
-                f'avg_sa: {avg_sa:.3f} | '
-                f'div: {diversity_top100:.3f} | '
-                f'invalid_cnt: {self.invalid_count:.3f}')
+                # f'avg_top1: {avg_top1:.3f} | '
+                # f'avg_top10: {avg_top10:.3f} | '
+                # f'avg_top100: {avg_top100:.3f} | '
+                f'mean_score: {self.mean_score:.3f} | '
+                # f'avg_sa: {avg_sa:.3f} | '
+                # f'div: {diversity_top100:.3f} | '
+                f'tot_cnt: {self.total_count} | '
+                f'inv_count: {self.invalid_count} | '
+                f'red_cnt: {self.redundant_count} | '
+                )
 
         if self.cfg.wandb_log: 
             wandb.log({
@@ -253,6 +266,8 @@ class BaseOptimizer:
                 "auc_top100": top_auc(self.mol_buffer, 100, finish, self.env_log_interval, self.max_oracle_calls),
                 "avg_sa": avg_sa,
                 "diversity_top100": diversity_top100,
+                "invalid_count" : self.invalid_count,
+                "redundant_count": self.redundant_count,
                 "num_molecules": n_calls,
             })
     
