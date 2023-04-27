@@ -68,16 +68,8 @@ class reinforce_optimizer(BaseOptimizer):
 
         logprobs = self.agent.get_likelihood(obs, episode_lens, nonterms)
 
-        logratio = logprobs - old_logprobs
-        ratio = logratio.exp()
-        loss_pg1 = -advantages * ratio
-        loss_pg2 = -advantages * torch.clamp(ratio, 1 - cfg.clip_coef, 1 + cfg.clip_coef)
-
-        # loss_pg = masked_mean(torch.max(loss_pg1, loss_pg2), mask=nonterms[:-1], axis=0).mean()
-        # loss_p = masked_mean(logprobs, mask=nonterms[:-1], axis=0).mean()
-        # loss = loss_pg + cfg.lp_coef * loss_p 
-
-        loss_pg = torch.max(loss_pg1, loss_pg2).sum(0, keepdim=True).mean()
+        loss_pg = -advantages * logprobs
+        loss_pg = loss_pg.sum(0, keepdim=True).mean()
         loss_p = - (1 / logprobs.sum(0, keepdim=True)).mean()
         loss = loss_pg + cfg.lp_coef * loss_p 
 
@@ -88,9 +80,9 @@ class reinforce_optimizer(BaseOptimizer):
         self.optimizer.step()
 
         if log:
-            with torch.no_grad():
-                clipfracs = ((ratio - 1.0).abs() > cfg.clip_coef).float().mean().item()
-                policy_kl = masked_mean(-logratio.mean(), nonterms[:-1]).item()
+            #with torch.no_grad():
+            #    clipfracs = ((ratio - 1.0).abs() > cfg.clip_coef).float().mean().item()
+            #    policy_kl = masked_mean(-logratio.mean(), nonterms[:-1]).item()
                 
             metrics['pg_loss'] = loss_pg.item()       
             metrics['agent_likelihood'] = logprobs.sum(0).mean().item()
@@ -98,8 +90,8 @@ class reinforce_optimizer(BaseOptimizer):
             metrics['grad_norm'] = grad_norm.item() 
             metrics['smiles_len'] = episode_lens.float().mean().item()
             
-            metrics['clipfracs'] = clipfracs
-            metrics['policy_kl'] = policy_kl            
+            #metrics['clipfracs'] = clipfracs
+            #metrics['policy_kl'] = policy_kl            
             
             metrics['loss_p'] = loss_p.item()
             print('logging!')
