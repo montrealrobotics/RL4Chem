@@ -47,6 +47,6 @@ output_dir:
 
 hydra:
   run:
-    dir: ./local_exp/${agent_name}/${now:%Y.%m.%d}/${now:%H.%M.%S}_${seed}
+    dir: ./${output_dir}/${agent_name}/${now:%Y.%m.%d}/${now:%H.%M.%S}_${seed}
   job:
     chdir: False
