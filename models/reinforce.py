@@ -56,7 +56,6 @@ class RnnPolicy(nn.Module):
         obs = torch.zeros((max_length + 1, batch_size), dtype=torch.long, device=device)
         obs[0] = self.vocab.bos
         nonterms = torch.zeros((max_length + 1, batch_size), dtype=torch.bool, device=device)
-        logprobs = torch.zeros((max_length, batch_size), dtype=torch.float32, device=device)
         rewards = torch.zeros((max_length, batch_size), dtype=torch.float32, device=device)
         end_flags = torch.zeros((1, batch_size), dtype=torch.bool, device=device)
 
@@ -67,7 +66,6 @@ class RnnPolicy(nn.Module):
             preds = preds_dist.sample()
 
             obs[i] = preds
-            logprobs[i-1] = preds_dist.log_prob(preds) * (~end_flags)
             nonterms[i-1] = ~end_flags
             
             EOS_sampled = (preds == self.vocab.eos)
@@ -86,10 +84,9 @@ class RnnPolicy(nn.Module):
         obs = obs[:i+1]
         nonterms = nonterms[:i+1]
         rewards = rewards[:i]
-        logprobs = logprobs[:i]
         episode_lens = nonterms.sum(0).cpu()
 
-        return obs, rewards, logprobs, nonterms, episode_lens
+        return obs, rewards, nonterms, episode_lens
     
     def get_save_dict(self):
         return {

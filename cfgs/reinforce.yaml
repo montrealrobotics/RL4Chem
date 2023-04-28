@@ -26,7 +26,6 @@ batch_size: 64
 max_len: 100
 
 #loss
-clip_coef: 0.2
 lp_coef: 5
 
 #rnn model

@@ -1,5 +1,4 @@
 import os
-import time
 import wandb
 import hydra
 import torch
@@ -7,7 +6,6 @@ import random
 import numpy as np
 from omegaconf import DictConfig
 from optimizer import BaseOptimizer
-from pathlib import Path
 path_here = os.path.dirname(os.path.realpath(__file__))
 
 from models.reinforce import RnnPolicy
@@ -62,7 +60,7 @@ class reinforce_optimizer(BaseOptimizer):
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params(self.agent), lr=cfg['learning_rate'])
         
-    def update(self, obs, rewards, old_logprobs, nonterms, episode_lens, cfg, metrics, log):
+    def update(self, obs, rewards, nonterms, episode_lens, cfg, metrics, log):
         rev_returns = torch.cumsum(rewards, dim=0) 
         advantages = rewards - rev_returns + rev_returns[-1:]
 
@@ -80,19 +78,10 @@ class reinforce_optimizer(BaseOptimizer):
         self.optimizer.step()
 
         if log:
-            #with torch.no_grad():
-            #    clipfracs = ((ratio - 1.0).abs() > cfg.clip_coef).float().mean().item()
-            #    policy_kl = masked_mean(-logratio.mean(), nonterms[:-1]).item()
-                
             metrics['pg_loss'] = loss_pg.item()       
             metrics['agent_likelihood'] = logprobs.sum(0).mean().item()
-            metrics['agent_old_likelihood'] = old_logprobs.sum(0).mean().item()
             metrics['grad_norm'] = grad_norm.item() 
             metrics['smiles_len'] = episode_lens.float().mean().item()
-            
-            #metrics['clipfracs'] = clipfracs
-            #metrics['policy_kl'] = policy_kl            
-            
             metrics['loss_p'] = loss_p.item()
             print('logging!')
             wandb.log(metrics)
@@ -113,7 +102,7 @@ class reinforce_optimizer(BaseOptimizer):
 
             with torch.no_grad():
                 # sample experience
-                obs, rewards, old_logprobs, nonterms, episode_lens = self.agent.get_data(cfg.batch_size, cfg.max_len, self.device)
+                obs, rewards, nonterms, episode_lens = self.agent.get_data(cfg.batch_size, cfg.max_len, self.device)
 
             smiles_list = []
             for en_sms in obs.cpu().numpy().T:
@@ -144,7 +133,7 @@ class reinforce_optimizer(BaseOptimizer):
                 wandb.log(metrics)
 
             rewards = rewards * scores
-            self.update(obs, rewards, old_logprobs, nonterms, episode_lens, cfg, metrics, log)
+            self.update(obs, rewards, nonterms, episode_lens, cfg, metrics, log)
         
 @hydra.main(config_path='cfgs', config_name='reinforce', version_base=None)
 def main(cfg: DictConfig):
