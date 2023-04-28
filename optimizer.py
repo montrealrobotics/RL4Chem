@@ -138,12 +138,11 @@ class BaseOptimizer:
         else:
             smi = Chem.MolToSmiles(mol)
             if smi in self.mol_buffer:
-                pass
                 self.mol_buffer[smi][2] += 1
                 self.redundant_count += 1
             else:
                 self.mol_buffer[smi] = [float(self.target(smi)), len(self.mol_buffer)+1, 1]
-            return self.mol_buffer[smi][0] #- 0.1 * self.mol_buffer[smi][2]
+            return self.mol_buffer[smi][0]
         
     def predict_pmo(self, smiles_list):
         assert type(smiles_list) == list
@@ -170,6 +169,7 @@ class BaseOptimizer:
         for i, smi in enumerate(smiles_list):
             if smi in self.mol_buffer:
                 score_list[i] = -self.mol_buffer[smi][0] / 20
+                self.mol_buffer[smi][2] += 1
                 self.redundant_count += 1
             else:
                 new_smiles.append((smi))
@@ -182,7 +182,7 @@ class BaseOptimizer:
                 self.invalid_count += 1
                 sc = 0
             else:
-                self.mol_buffer[smi] = [sc, len(self.mol_buffer)+1]        
+                self.mol_buffer[smi] = [sc, len(self.mol_buffer)+1, 1]        
 
             score_list[ptr] = -sc / 20      
 
