@@ -1,5 +1,5 @@
 agent_name: reinforce
-model_name: char_rnn
+model_name: char_trans
 dataset: zinc250k
 rep: smiles
 task: pmo
@@ -24,14 +24,15 @@ max_strings: 40000
 learning_rate: 0.0005
 batch_size: 64
 max_len: 100
+dropout: 0.0
 
 #loss
 lp_coef: 5
 
-#rnn model
-num_layers: 3
-hidden_size: 512
-embedding_size: 128
+#trans model
+n_layers: 6
+n_embed: 256
+n_heads: 16
 saved_name: final_1.pt
 
 #logging
@@ -43,7 +44,7 @@ env_log_interval: 100
 
 #saving
 save_snapshot: False
-output_dir:
+output_dir: local_exp
 
 hydra:
   run:

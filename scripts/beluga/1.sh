@@ -23,7 +23,7 @@ echo "moved code to slurm tmpdir"
 cd $SLURM_TMPDIR/RL4Chem
 
 wandb offline
-python train_reinforce_agent.py target=${t} seed=${s} wandb_log=True lp_coef=5 wandb_run_name='l5_reinforce_char_rnn_smiles_'${s}
+python train_reinforce_agent.py target=${t} seed=${s} wandb_log=True wandb_run_name='reinforce_char_rnn_smiles_'${s}
 
 a="local_exp"
 mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a

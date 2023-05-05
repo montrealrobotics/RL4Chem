@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 from optimizer import BaseOptimizer
 path_here = os.path.dirname(os.path.realpath(__file__))
 
-from models.reinforce import RnnPolicy
+from models.reinforce import TransPolicy
 from data import smiles_vocabulary, selfies_vocabulary
 
 def set_seed(seed):
@@ -36,7 +36,11 @@ class reinforce_optimizer(BaseOptimizer):
         if cfg.dataset == 'zinc250k':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
             vocab_path = 'data/zinc250k/zinc_' + cfg.rep + '_vocab.txt'
-
+            max_dataset_len = 73
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('Changing the maximum length of smapled molecules because it was set to be greater than the maximum length seen during training')
+        
         #get data
         if cfg.rep == 'smiles':
             self.vocab = smiles_vocabulary(vocab_path=os.path.join(path_here, vocab_path))
@@ -44,27 +48,23 @@ class reinforce_optimizer(BaseOptimizer):
             self.vocab = selfies_vocabulary(vocab_path=os.path.join(path_here, vocab_path))
         else:
             raise NotImplementedError
-
-        if cfg.model_name == 'transformer':
-            raise NotImplementedError
-        elif cfg.model_name == 'char_rnn':
-            #get prior
-            prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
- 
-            # get agent
-            self.agent = RnnPolicy(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
-            self.agent.load_save_dict(prior_saved_dict)
-        else:
-            raise NotImplementedError
     
+        assert cfg.model_name == 'char_trans'
+        #get prior
+        prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
+
+        # get agent
+        self.agent = TransPolicy(self.vocab, max_dataset_len, cfg.n_heads, cfg.n_embed, cfg.n_layers, dropout=cfg.dropout).to(self.device)
+        self.agent.load_save_dict(prior_saved_dict)
+
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params(self.agent), lr=cfg['learning_rate'])
-        
+    
     def update(self, obs, rewards, nonterms, episode_lens, cfg, metrics, log):
         rev_returns = torch.cumsum(rewards, dim=0) 
         advantages = rewards - rev_returns + rev_returns[-1:]
 
-        logprobs = self.agent.get_likelihood(obs, episode_lens, nonterms)
+        logprobs = self.agent.get_likelihood(obs, nonterms)
 
         loss_pg = -advantages * logprobs
         loss_pg = loss_pg.sum(0, keepdim=True).mean()
@@ -134,8 +134,8 @@ class reinforce_optimizer(BaseOptimizer):
 
             rewards = rewards * scores
             self.update(obs, rewards, nonterms, episode_lens, cfg, metrics, log)
-        
-@hydra.main(config_path='cfgs', config_name='reinforce', version_base=None)
+
+@hydra.main(config_path='cfgs', config_name='reinforce_trans', version_base=None)
 def main(cfg: DictConfig):
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
     
