@@ -29,9 +29,9 @@ max_len: 100
 lp_coef: 5
 
 #rnn model
-num_layers: 3
-hidden_size: 512
-embedding_size: 128
+num_layers:
+hidden_size:
+embedding_size:
 saved_name: final_1.pt
 
 #logging
