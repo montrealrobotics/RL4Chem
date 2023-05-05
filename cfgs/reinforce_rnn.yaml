@@ -21,7 +21,7 @@ device: cuda
 max_oracle_calls: 25000
 max_strings: 40000
 
-learning_rate: 0.0005
+learning_rate: 0.0001
 batch_size: 64
 max_len: 100
 
