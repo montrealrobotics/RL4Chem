@@ -1,5 +1,6 @@
 import os
 import tdc
+import time
 import yaml
 import wandb
 import numpy as np
@@ -49,6 +50,7 @@ class BaseOptimizer:
 
         #logging counters
         self.last_log = 0
+        self.last_log_time = time.time()
         self.total_count = 0
         self.invalid_count = 0
         self.redundant_count = 0
@@ -153,6 +155,7 @@ class BaseOptimizer:
             if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
                 self.sort_buffer()
                 self.log_intermediate()
+                self.last_log_time = time.time()
                 self.last_log = len(self.mol_buffer)
         self.mean_score = np.mean(score_list)
         return score_list
@@ -189,6 +192,7 @@ class BaseOptimizer:
             if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
                 self.sort_buffer()
                 self.log_intermediate()
+                self.last_log_time = time.time()
                 self.last_log = len(self.mol_buffer)
         self.mean_score = np.mean(score_list)
         return score_list
@@ -249,9 +253,9 @@ class BaseOptimizer:
                 # f'avg_top1: {avg_top1:.3f} | '
                 # f'avg_top10: {avg_top10:.3f} | '
                 # f'avg_top100: {avg_top100:.3f} | '
+                f'time: {time.time() - self.last_log_time:.3f} | '
                 f'mean_score: {self.mean_score:.3f} | '
                 # f'avg_sa: {avg_sa:.3f} | '
-                # f'div: {diversity_top100:.3f} | '
                 f'tot_cnt: {self.total_count} | '
                 f'inv_count: {self.invalid_count} | '
                 f'red_cnt: {self.redundant_count} | '

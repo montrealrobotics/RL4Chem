@@ -39,7 +39,7 @@ class reinforce_optimizer(BaseOptimizer):
             max_dataset_len = 73
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
-                print('*** Changing the maximum length of smapled molecules because it was set to be greater than the maximum length seen during training ***')
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
         
         #get data
         if cfg.rep == 'smiles':
