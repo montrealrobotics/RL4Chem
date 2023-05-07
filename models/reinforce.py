@@ -224,3 +224,109 @@ class RnnPolicy(nn.Module):
         self.embedding.load_state_dict(saved_dict["embedding"])
         self.rnn.load_state_dict(saved_dict["rnn"])
         self.linear.load_state_dict(saved_dict["linear"])
+
+class FcPolicy(nn.Module):
+    def __init__(self, vocab, max_len, embedding_size, hidden_size):
+        super(FcPolicy, self).__init__()
+        self.vocab = vocab
+        self.max_len = max_len
+        self.embedding = nn.Embedding(len(vocab), embedding_size, padding_idx=vocab.pad, dtype=torch.float32)
+        self.fc1 = nn.Linear(embedding_size * max_len, hidden_size) 
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, len(vocab))
+
+        self.register_buffer('triu', torch.tril(torch.ones(max_len, max_len))) #L,L
+
+    def forward(self, x):
+        B, L = x.shape
+        x = self.embedding(x) #B, L, C
+
+        x = (x.view(B, 1, L, -1) * self.triu.unsqueeze(-1)).flatten(start_dim=-2) #(B, 1, L, C) * (L, L, 1) -> (B, L, L, C).flatten(start_dim=-2) -> (B, L, L*C)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        logits = self.fc3(x)
+        return td.Categorical(logits=logits)
+
+    def forward_last(self, x):
+        x = self.embedding(x).flatten(start_dim=-2) #(B, L)-> (B, L*C)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        logits = self.fc3(x)
+        return td.Categorical(logits=logits)
+    
+    def sample(self, batch_size, device, max_length):
+        assert max_length <= self.max_len
+
+        imag_smiles = self.vocab.pad * torch.ones((self.max_len + 1, batch_size), dtype=torch.long, device=device)
+        imag_smiles[0] = self.vocab.bos
+        finished = torch.zeros((1, batch_size), dtype=torch.bool, device=device)
+        with torch.no_grad():
+            for i in range(1, max_length + 1):
+                preds_dist = self.forward_last(imag_smiles[:-1].T)
+                preds = preds_dist.sample()
+                imag_smiles[i] = preds
+                EOS_sampled = (preds == self.vocab.eos)
+                finished = torch.ge(finished + EOS_sampled, 1)
+                if torch.prod(finished) == 1: break
+    
+        imag_smiles = imag_smiles.T.tolist()
+        return imag_smiles
+
+    def get_likelihood(self, obs, nonterms):      
+        dist = self.forward(obs[:-1].T)
+        logprobs = dist.log_prob(obs[1:].T) * nonterms[:-1].T
+        return logprobs.T
+
+    def get_data(self, batch_size, max_length, device):
+        if max_length is None:
+            max_length = self.max_len
+        else:
+            assert max_length <= self.max_len
+        
+        obs = self.vocab.pad * torch.ones((self.max_len + 1, batch_size), dtype=torch.long, device=device)
+        obs[0] = self.vocab.bos
+        nonterms = torch.zeros((max_length + 1, batch_size), dtype=torch.bool, device=device)
+        rewards = torch.zeros((max_length, batch_size), dtype=torch.float32, device=device)
+        end_flags = torch.zeros((1, batch_size), dtype=torch.bool, device=device)
+
+        for i in range(1, max_length+1):
+            preds_dist = self.forward_last(obs[:-1].T)
+            preds = preds_dist.sample()
+            
+            obs[i] = preds
+            nonterms[i-1] = ~end_flags
+            
+            EOS_sampled = (preds == self.vocab.eos)
+            rewards[i-1] = EOS_sampled * (~end_flags)
+
+            #check if all sequences are done
+            end_flags = torch.ge(end_flags + EOS_sampled, 1)
+            
+            if torch.prod(end_flags) == 1: break
+        
+        if i == max_length:
+            rewards[-1] = rewards[-1] + (~end_flags)
+        
+        #remove assertion afterwards
+        assert rewards.sum() == batch_size
+
+        obs = obs#[:i+1]
+        nonterms = nonterms#[:i+1]
+        rewards = rewards#[:i]
+        episode_lens = nonterms[:i+1].sum(0).cpu()
+
+        return obs, rewards, nonterms, episode_lens
+    
+    def get_save_dict(self):
+        return {
+            "embedding": self.embedding.state_dict(),
+            "fc1": self.fc1.state_dict(),
+            "fc2": self.fc2.state_dict(),
+            "fc3": self.fc3.state_dict(),
+        }
+
+    def load_save_dict(self, saved_dict):
+        self.embedding.load_state_dict(saved_dict["embedding"])
+        self.fc1.load_state_dict(saved_dict["fc1"])
+        self.fc2.load_state_dict(saved_dict["fc2"])
+        self.fc3.load_state_dict(saved_dict["fc3"])
