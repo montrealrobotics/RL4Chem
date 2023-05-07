@@ -69,7 +69,14 @@ class reinforce_optimizer(BaseOptimizer):
         print('Prior loaded')
 
         # get agent
-        self.agent = TransPolicy(self.vocab, max_dataset_len, cfg.n_heads, cfg.n_embed, cfg.n_layers, dropout=cfg.dropout).to(self.device)
+        self.agent = TransPolicy(self.vocab, max_dataset_len, cfg.n_heads, cfg.n_embed, cfg.n_layers, dropout=cfg.dropout)
+        
+        print('Agent class initialised')
+
+        self.agent.to(self.device)
+
+        print('Agent class transferred to cuda memory')
+
         self.agent.load_save_dict(prior_saved_dict)
 
         print('Prior weights initialised')
