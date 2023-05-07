@@ -25,4 +25,4 @@ rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --excl
 
 cd $SLURM_TMPDIR/RL4Chem
 
-python train_reinforce_trans_agent.py target=${t} seed=${s} learning_rate=0.000001 wandb_log=True wandb_run_name='lr_0.000001_reinforce_char_trans_smiles_'${s}
+python train_reinforce_trans_agent.py target=${t} seed=${s} learning_rate=0.0005 wandb_log=True wandb_run_name='lr_0.0005_reinforce_char_trans_smiles_'${s}
