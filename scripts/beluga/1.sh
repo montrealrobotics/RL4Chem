@@ -17,7 +17,7 @@ echo ${s}
 t=${targets[$(((SLURM_ARRAY_TASK_ID-1) / 3))]}
 echo ${t}
 
-# module load httpproxy
+module load httpproxy
 echo "activating env"
 source $HOME/projects/def-gberseth/$USER/RL4Chem/env_chem/bin/activate
 
@@ -26,11 +26,13 @@ rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --excl
 
 cd $SLURM_TMPDIR/RL4Chem
 
-wandb offline
-python train_reinforce_trans_agent.py target=${t} seed=${s} learning_rate=0.000001 wandb_log=True wandb_dir='./' wandb_run_name='lr_0.000001_reinforce_char_trans_smiles_'${s}
+python train_reinforce_trans_agent.py target=${t} seed=${s} learning_rate=0.000001 wandb_log=True wandb_run_name='lr_0.000001_reinforce_char_trans_smiles_'${s}
 
-a="local_exp"
-mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
+# a="local_exp"
+# mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
+
 echo $(ls)
-echo $(ls wandb/)
-cp -r $SLURM_TMPDIR/RL4Chem/wandb $HOME/projects/def-gberseth/$USER/RL4Chem/$a
+
+echo $(ls local_exp/)
+
+# cp -r $SLURM_TMPDIR/RL4Chem/wandb $HOME/projects/def-gberseth/$USER/RL4Chem/$a
