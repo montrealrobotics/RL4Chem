@@ -1,4 +1,5 @@
 import os
+import sys
 import wandb
 import hydra
 import torch
@@ -39,7 +40,7 @@ class reinforce_optimizer(BaseOptimizer):
             max_dataset_len = 73
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
-                print('Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training')
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
         
         elif cfg.dataset == 'zinc10M':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
@@ -47,7 +48,7 @@ class reinforce_optimizer(BaseOptimizer):
             max_dataset_len = 85
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
-                print('Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training')
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
         else:
             raise NotImplementedError
         
@@ -163,6 +164,7 @@ def main(cfg: DictConfig):
 
     optimizer = reinforce_optimizer(cfg)
     optimizer.optimize(cfg)
-
+    sys.exit(0)
+    
 if __name__ == '__main__':
     main()
