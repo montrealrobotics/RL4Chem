@@ -70,6 +70,8 @@ class reinforce_optimizer(BaseOptimizer):
 
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params(self.agent), lr=cfg['learning_rate'])
+
+        print('Initialisation of optimizer is done!')
     
     def update(self, obs, rewards, nonterms, episode_lens, cfg, metrics, log):
         rev_returns = torch.cumsum(rewards, dim=0) 
@@ -109,6 +111,7 @@ class reinforce_optimizer(BaseOptimizer):
         train_steps = 0
         eval_strings = 0
         metrics = dict() 
+        print('Start training ... ')
         while eval_strings < cfg.max_strings:
 
             with torch.no_grad():

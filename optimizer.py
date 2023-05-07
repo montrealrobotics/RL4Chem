@@ -34,6 +34,7 @@ class BaseOptimizer:
         
         # defining target oracles
         self.assign_target(cfg)
+        print('Target is assigned')
 
         # defining standard oracles
         self.sa_scorer = tdc.Oracle(name = 'SA')
@@ -55,6 +56,8 @@ class BaseOptimizer:
         self.invalid_count = 0
         self.redundant_count = 0
         
+        print('Initialisation of base optimizer is done!')
+
     @property
     def budget(self):
         return self.max_oracle_calls
