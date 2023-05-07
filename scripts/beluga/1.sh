@@ -18,7 +18,7 @@ t=${targets[$(((SLURM_ARRAY_TASK_ID-1) / 3))]}
 echo ${t}
 
 # module load httpproxy
-source env_chem/bin/activate
+source $HOME/projects/def-gberseth/$USER/RL4Chem/env_chem/bin/activate
 
 rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --exclude=env_chem
 echo "moved code to slurm tmpdir"
