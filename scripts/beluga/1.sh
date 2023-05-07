@@ -27,4 +27,6 @@ python train_reinforce_trans_agent.py target=${t} seed=${s} learning_rate=0.0000
 
 a="local_exp"
 mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
+echo $(ls)
+echo $(ls wandb/)
 cp -r $SLURM_TMPDIR/RL4Chem/wandb $HOME/projects/def-gberseth/$USER/RL4Chem/$a
