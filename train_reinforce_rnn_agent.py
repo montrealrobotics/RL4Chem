@@ -1,5 +1,4 @@
 import os
-import sys
 import wandb
 import hydra
 import torch
@@ -156,7 +155,7 @@ def main(cfg: DictConfig):
 
     optimizer = reinforce_optimizer(cfg)
     optimizer.optimize(cfg)
-    sys.exit(0)
+    quit()
 
 if __name__ == '__main__':
     main()

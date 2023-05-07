@@ -28,11 +28,7 @@ cd $SLURM_TMPDIR/RL4Chem
 
 python train_reinforce_trans_agent.py target=${t} seed=${s} learning_rate=0.000001 wandb_log=True wandb_run_name='lr_0.000001_reinforce_char_trans_smiles_'${s}
 
-# a="local_exp"
-# mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
-
+a="local_exp"
+mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
 echo $(ls)
-
-echo $(ls local_exp/)
-
-# cp -r $SLURM_TMPDIR/RL4Chem/wandb $HOME/projects/def-gberseth/$USER/RL4Chem/$a
+cp -r $SLURM_TMPDIR/RL4Chem/local_exp $HOME/projects/def-gberseth/$USER/RL4Chem/$a
