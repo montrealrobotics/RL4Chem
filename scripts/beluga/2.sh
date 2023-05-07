@@ -17,7 +17,7 @@ echo ${s}
 t=${targets[$(((SLURM_ARRAY_TASK_ID-1) / 3))]}
 echo ${t}
 
-# module load httpproxy
+module load httpproxy
 echo "activating env"
 source $HOME/projects/def-gberseth/$USER/RL4Chem/env_chem/bin/activate
 
