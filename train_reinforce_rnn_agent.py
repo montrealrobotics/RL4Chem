@@ -141,7 +141,11 @@ def main(cfg: DictConfig):
     
     if cfg.wandb_log:
         project_name = cfg.task + '_' + cfg.target
-        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir'])
+        if cfg.wandb_dir is not None:
+            cfg.wandb_dir = path_here 
+        else:
+            cfg.wandb_dir = hydra_cfg['runtime']['output_dir']
+        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=cfg.wandb_dir)
         wandb.run.name = cfg.wandb_run_name
     
     set_seed(cfg.seed)

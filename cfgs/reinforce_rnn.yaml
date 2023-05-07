@@ -37,6 +37,7 @@ saved_name: final_1.pt
 #logging
 wandb_log: False
 wandb_entity: raj19
+wandb_dir:
 wandb_run_name: ${agent_name}_${seed}
 train_log_interval: 4
 env_log_interval: 100

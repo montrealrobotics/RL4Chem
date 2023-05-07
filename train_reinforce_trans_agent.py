@@ -40,6 +40,14 @@ class reinforce_optimizer(BaseOptimizer):
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
                 print('Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training')
+        
+        elif cfg.dataset == 'zinc10M':
+            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
+            vocab_path = 'data/zinc10M/zinc_' + cfg.rep + '_vocab.txt'
+            max_dataset_len = 85
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training')
         else:
             raise NotImplementedError
         
@@ -143,9 +151,13 @@ def main(cfg: DictConfig):
     
     if cfg.wandb_log:
         project_name = cfg.task + '_' + cfg.target
-        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=hydra_cfg['runtime']['output_dir'])
+        if cfg.wandb_dir is not None:
+            cfg.wandb_dir = path_here 
+        else:
+            cfg.wandb_dir = hydra_cfg['runtime']['output_dir']
+        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=cfg.wandb_dir)
         wandb.run.name = cfg.wandb_run_name
-    
+        
     set_seed(cfg.seed)
     cfg.output_dir = hydra_cfg['runtime']['output_dir']
 
