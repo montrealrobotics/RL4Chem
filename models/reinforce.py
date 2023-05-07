@@ -26,15 +26,30 @@ class TransPolicy(nn.Module):
         self._dropout = dropout
         self.n_layers = n_layers
 
+        print('TRANS: arguments are stored')
+
         self.embedding = nn.Embedding(len(vocab), n_embed, padding_idx=vocab.pad, dtype=torch.float32)
         self.position_embedding = nn.Embedding(max_len, n_embed, dtype=torch.float32)
-                
+        
+        print('TRANS: embeddings are initialised')
+
         encoder_layer = nn.TransformerEncoderLayer(n_embed, n_heads, 4 * n_embed, dropout=dropout, activation="gelu", norm_first=True)
         self.encoder = nn.TransformerEncoder(encoder_layer, n_layers, nn.LayerNorm(n_embed))
+
+        print('TRANS: transformer encoder layers are initialised')
+
         self.linear = nn.Linear(n_embed, len(vocab)) 
+        
+        print('TRANS: linear layer is initialised')
+
         weight_init(self.linear)
 
+        print('TRANS: special eight init of linear layer is done')
+
         self.register_buffer('triu', torch.triu(torch.ones(max_len, max_len) * float('-inf'), diagonal=1))
+
+        print('TRANS: buffer is registered')
+        print('TRANS: done')
 
     def forward(self, x):
         L, B = x.shape
