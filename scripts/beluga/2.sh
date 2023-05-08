@@ -5,7 +5,6 @@
 #SBATCH --mem=4G
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus-per-node=v100:1
-#SBATCH --array=1-115
 
 module load httpproxy
 echo "activating env"
