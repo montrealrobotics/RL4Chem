@@ -1,4 +1,5 @@
 import os
+import sys
 import wandb
 import hydra
 import torch
@@ -116,7 +117,7 @@ class reinforce_optimizer(BaseOptimizer):
 
             if self.finish:
                 print('max oracle hit')
-                os.exit() 
+                sys.exit(0)
 
             train_steps += 1
             eval_strings += cfg.batch_size
@@ -138,7 +139,7 @@ class reinforce_optimizer(BaseOptimizer):
             self.update(obs, rewards, nonterms, episode_lens, cfg, metrics, log)
 
         print('max training string hit')
-        os.exit()
+        sys.exit(0)
 
 @hydra.main(config_path='cfgs', config_name='reinforce_fc', version_base=None)
 def main(cfg: DictConfig):
@@ -158,6 +159,13 @@ def main(cfg: DictConfig):
 
     optimizer = reinforce_optimizer(cfg)
     optimizer.optimize(cfg)
+    print('hello did not exit 1')
+    sys.exit(0)
+    exit()
+
 
 if __name__ == '__main__':
     main()
+    print('hello did not exit 2')
+    sys.exit(0)
+    exit()
