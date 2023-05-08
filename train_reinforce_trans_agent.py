@@ -141,6 +141,7 @@ class reinforce_optimizer(BaseOptimizer):
 
             if self.finish:
                 print('max oracle hit')
+                wandb.finish()
                 sys.exit(0)
 
             train_steps += 1
@@ -163,6 +164,7 @@ class reinforce_optimizer(BaseOptimizer):
             self.update(obs, rewards, nonterms, episode_lens, cfg, metrics, log)
 
         print('max training string hit')
+        wandb.finish()
         sys.exit(0)
 
 @hydra.main(config_path='cfgs', config_name='reinforce_trans', version_base=None)
