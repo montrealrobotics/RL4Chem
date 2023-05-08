@@ -27,6 +27,7 @@ max_len: 100
 
 #loss
 lp_coef: 5
+penalty:
 
 #rnn model
 num_layers: 3

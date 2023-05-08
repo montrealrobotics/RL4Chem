@@ -120,9 +120,17 @@ class reinforce_optimizer(BaseOptimizer):
                         true_selfies_len_list.append(episode_lens[i])
                     smiles_list.append(sms)
                 
-                score = np.array(self.predict(smiles_list))
-                scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0) - torch.abs(episode_lens-torch.tensor(true_selfies_len_list)).float().mean() / cfg.max_len
-
+                if cfg.penalty == 'diff':
+                    # difference penalty
+                    score = np.array(self.predict(smiles_list)) - np.abs(episode_lens.numpy() - true_selfies_len_list) / cfg.max_len
+                    scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
+                elif cfg.penalty == 'len':
+                    # length penalty
+                    score = np.array(self.predict(smiles_list)) - episode_lens.numpy() / cfg.max_len
+                    scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0) 
+                else:
+                    score = np.array(self.predict(smiles_list))
+                    scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
             else:
                 smiles_list = []
                 for en_sms in obs.cpu().numpy().T:
