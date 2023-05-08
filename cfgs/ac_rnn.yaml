@@ -20,7 +20,6 @@ seed: 1
 device: cuda
 max_oracle_calls: 25000
 max_strings: 40000
-patience: 5
 
 learning_rate: 0.0005
 batch_size: 64
@@ -39,6 +38,7 @@ saved_name: final_1.pt
 #logging
 wandb_log: False
 wandb_entity: raj19
+wandb_dir:
 wandb_run_name: ${agent_name}_${seed}
 train_log_interval: 4
 env_log_interval: 100

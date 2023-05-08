@@ -42,7 +42,13 @@ class ac_optimizer(BaseOptimizer):
         if cfg.dataset == 'zinc250k':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
             vocab_path = 'data/zinc250k/zinc_' + cfg.rep + '_vocab.txt'
-
+            max_dataset_len = 73
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
+        else:
+            raise NotImplementedError
+        
         #get data
         if cfg.rep == 'smiles':
             self.vocab = smiles_vocabulary(vocab_path=os.path.join(path_here, vocab_path))
@@ -51,21 +57,16 @@ class ac_optimizer(BaseOptimizer):
         else:
             raise NotImplementedError
 
-        if cfg.model_name == 'transformer':
-            raise NotImplementedError
-        elif cfg.model_name == 'char_rnn':
-            #get prior
-            prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
+        assert cfg.model_name == 'char_rnn'
+        #get prior
+        prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
  
-            # get agent
-            self.actor = RnnPolicy(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
-            self.actor.load_save_dict(prior_saved_dict)
+        # get agent
+        self.actor = RnnPolicy(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
+        self.actor.load_save_dict(prior_saved_dict)
 
-            self.critic = RnnValue(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
-            self.critic.load_save_dict(prior_saved_dict)
-    
-        else:
-            raise NotImplementedError
+        self.critic = RnnValue(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
+        self.critic.load_save_dict(prior_saved_dict)
     
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params([self.actor, self.critic]), lr=cfg['learning_rate'])
@@ -152,17 +153,10 @@ class ac_optimizer(BaseOptimizer):
 
         self._init(cfg)
 
-        patience = 0
         train_steps = 0
         eval_strings = 0
         metrics = dict() 
         while eval_strings < cfg.max_strings:
-            if len(self) > 100:
-                self.sort_buffer()
-                old_scores = [item[1][0] for item in list(self.mol_buffer.items())[:100]]
-            else:
-                old_scores = 0
-
             with torch.no_grad():
                 # sample experience
                 obs, rewards, old_logprobs, old_values, nonterms, episode_lens = self.actor.get_data(self.critic, cfg.batch_size, cfg.max_len, self.device)
@@ -177,20 +171,7 @@ class ac_optimizer(BaseOptimizer):
 
             if self.finish:
                 print('max oracle hit')
-                break 
-
-            # early stopping
-            if len(self) > 1000:
-                self.sort_buffer()
-                new_scores = [item[1][0] for item in list(self.mol_buffer.items())[:100]]
-                if new_scores == old_scores:
-                    patience += 1
-                    if patience >= self.cfg.patience*2:
-                        self.log_intermediate(finish=True)
-                        print('convergence criteria met, abort ...... ')
-                        break
-                else:
-                    patience = 0
+                quit() 
 
             train_steps += 1
             eval_strings += cfg.batch_size
@@ -211,13 +192,20 @@ class ac_optimizer(BaseOptimizer):
             rewards = rewards * scores
             self.update(obs, rewards, old_logprobs, old_values, nonterms, episode_lens, cfg, metrics, log)
         
-@hydra.main(config_path='cfgs', config_name='ac', version_base=None)
+        print('max training string hit')
+        quit()
+
+@hydra.main(config_path='cfgs', config_name='ac_rnn', version_base=None)
 def main(cfg: DictConfig):
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
     
     if cfg.wandb_log:
         project_name = cfg.task + '_' + cfg.target
-        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg))
+        if cfg.wandb_dir is not None:
+            cfg.wandb_dir = path_here 
+        else:
+            cfg.wandb_dir = hydra_cfg['runtime']['output_dir']
+        wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg), dir=cfg.wandb_dir)
         wandb.run.name = cfg.wandb_run_name
     
     set_seed(cfg.seed)
@@ -225,6 +213,7 @@ def main(cfg: DictConfig):
 
     optimizer = ac_optimizer(cfg)
     optimizer.optimize(cfg)
+    quit()
 
 if __name__ == '__main__':
     main()
