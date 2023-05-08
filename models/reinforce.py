@@ -7,14 +7,6 @@ import torch.nn.utils.rnn as rnn_utils
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def weight_init(m):
-    if isinstance(m, nn.Linear):
-        nn.init.orthogonal_(m.weight.data)
-        if hasattr(m.bias, 'data'):
-            m.bias.data.fill_(0.0)
-    elif isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-        raise NotImplementedError
-
 class TransPolicy(nn.Module):
     def __init__(self, vocab, max_len, n_heads, n_embed, n_layers, dropout):
         super(TransPolicy, self).__init__()
@@ -41,10 +33,6 @@ class TransPolicy(nn.Module):
         self.linear = nn.Linear(n_embed, len(vocab)) 
         
         print('TRANS: linear layer is initialised')
-
-        weight_init(self.linear)
-
-        print('TRANS: special eight init of linear layer is done')
 
         self.register_buffer('triu', torch.triu(torch.ones(max_len, max_len) * float('-inf'), diagonal=1))
 
