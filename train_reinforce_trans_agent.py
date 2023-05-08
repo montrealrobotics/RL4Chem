@@ -140,7 +140,7 @@ class reinforce_optimizer(BaseOptimizer):
 
             if self.finish:
                 print('max oracle hit')
-                quit() 
+                os.exit() 
 
             train_steps += 1
             eval_strings += cfg.batch_size
@@ -162,7 +162,7 @@ class reinforce_optimizer(BaseOptimizer):
             self.update(obs, rewards, nonterms, episode_lens, cfg, metrics, log)
 
         print('max training string hit')
-        quit()
+        os.exit()
 
 @hydra.main(config_path='cfgs', config_name='reinforce_trans', version_base=None)
 def main(cfg: DictConfig):
@@ -182,7 +182,7 @@ def main(cfg: DictConfig):
 
     optimizer = reinforce_optimizer(cfg)
     optimizer.optimize(cfg)
-    quit()
+    os.exit()
     
 if __name__ == '__main__':
     main()
