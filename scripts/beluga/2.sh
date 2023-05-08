@@ -32,9 +32,7 @@ cd $SLURM_TMPDIR/RL4Chem
 
 wandb offline
 
-python train_reinforce_rnn_agent.py target=${t} seed=${s} wandb_log=True wandb_run_name='reinforce_char_fc_smiles_'${s} &
-
-python train_reinforce_rnn_agent.py target=${t} seed=${s} rep=selfies wandb_log=True wandb_run_name='reinforce_char_fc_selfies_'${s}
+python train_reinforce_rnn_agent.py target=${t} seed=${s} rep=selfies wandb_log=True wandb_dir='.' wandb_run_name='reinforce_char_rnn_selfies_'${s}
 
 a="local_exp"
 mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
