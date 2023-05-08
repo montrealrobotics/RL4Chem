@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --account=rrg-bengioy-ad
-#SBATCH --time=00:30:00
+#SBATCH --time=00:35:00
 #SBATCH --mem=4G
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus-per-node=1
