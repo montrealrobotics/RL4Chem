@@ -22,7 +22,6 @@ echo ${s}
 t=${targets[$(((SLURM_ARRAY_TASK_ID-1) / 5))]}
 echo ${t}
 
-module load httpproxy
 echo "activating env"
 source $HOME/projects/def-gberseth/$USER/RL4Chem/env_chem/bin/activate
 
@@ -31,6 +30,13 @@ rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --excl
 
 cd $SLURM_TMPDIR/RL4Chem
 
+wandb offline
+
 python train_reinforce_fc_agent.py target=${t} seed=${s} wandb_log=True wandb_run_name='reinforce_char_fc_smiles_'${s} &
 
 python train_reinforce_fc_agent.py target=${t} seed=${s} rep=selfies wandb_log=True wandb_run_name='reinforce_char_fc_selfies_'${s}
+
+a="local_exp"
+mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
+cp -r $SLURM_TMPDIR/RL4Chem/wandb $HOME/projects/def-gberseth/$USER/RL4Chem/$a
+echo "done"
