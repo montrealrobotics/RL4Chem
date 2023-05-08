@@ -5,6 +5,7 @@ import hydra
 import torch
 import random
 import numpy as np
+import selfies as sf
 from omegaconf import DictConfig
 from optimizer import BaseOptimizer
 path_here = os.path.dirname(os.path.realpath(__file__))
@@ -107,13 +108,29 @@ class reinforce_optimizer(BaseOptimizer):
                 # sample experience
                 obs, rewards, nonterms, episode_lens = self.agent.get_data(cfg.batch_size, cfg.max_len, self.device)
 
-            smiles_list = []
-            for en_sms in obs.cpu().numpy().T:
-                sms = self.vocab.decode_padded(en_sms)
-                smiles_list.append(sms)
+
+            if cfg.rep == 'selfies':
+                smiles_list = []
+                true_selfies_len_list = []
+                for i, en_sms in enumerate(obs.cpu().numpy().T):
+                    sms = self.vocab.decode_padded(en_sms)
+                    try:
+                        true_selfies_len_list.append(sf.len_selfies(sf.encoder(sms)))
+                    except:
+                        true_selfies_len_list.append(episode_lens[i])
+                    smiles_list.append(sms)
                 
-            score = np.array(self.predict(smiles_list))
-            scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
+                score = np.array(self.predict(smiles_list))
+                scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0) - torch.abs(episode_lens-torch.tensor(true_selfies_len_list)).float().mean() / cfg.max_len
+
+            else:
+                smiles_list = []
+                for en_sms in obs.cpu().numpy().T:
+                    sms = self.vocab.decode_padded(en_sms)
+                    smiles_list.append(sms)
+
+                score = np.array(self.predict(smiles_list))
+                scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
 
             if self.finish:
                 print('max oracle hit')
