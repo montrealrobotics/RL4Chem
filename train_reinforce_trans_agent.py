@@ -45,7 +45,10 @@ class reinforce_optimizer(BaseOptimizer):
         elif cfg.dataset == 'chembl':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
             vocab_path = 'data/chembl/chembl_' + cfg.rep + '_vocab.txt'
-            max_dataset_len = 112
+            if cfg.rep=='smiles': 
+                max_dataset_len = 112
+            elif cfg.rep=='selfies':
+                max_dataset_len = 106
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
                 print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
