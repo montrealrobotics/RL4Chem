@@ -21,4 +21,6 @@ oracle/
 #results.py
 results.py
 results/
+docking_results.py
+docking_results/
 final_results/

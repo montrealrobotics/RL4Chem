@@ -53,9 +53,9 @@ class reinforce_optimizer(BaseOptimizer):
                 cfg.max_len = max_dataset_len
                 print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
         
-        elif cfg.dataset == 'zinc10M':
+        elif cfg.dataset == 'zinc10m':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
-            vocab_path = 'data/zinc10M/zinc_' + cfg.rep + '_vocab.txt'
+            vocab_path = 'data/zinc10m/zinc_' + cfg.rep + '_vocab.txt'
             max_dataset_len = 85
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
