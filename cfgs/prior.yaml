@@ -1,0 +1,61 @@
+agent_name: prior
+model_name: char_trans
+dataset: zinc250k
+rep: smiles
+task: pmo
+target: qed
+
+#docking specific
+vina_program: 'qvina2'
+temp_dir: 'tmp'
+exhaustiveness: 1
+num_sub_proc: 12
+num_cpu_dock: 1
+num_modes: 10
+timeout_gen3d: 30
+timeout_dock: 100
+
+#learning
+seed: 1
+device: cuda
+max_oracle_calls: 25000
+max_strings: 40000
+
+batch_size: 512
+max_len: 100
+dropout: 0.0
+
+#fc model
+fc_num_layers: 3
+fc_hidden_size: 1024
+fc_embedding_size: 128
+
+#rnn model
+rnn_num_layers: 3
+rnn_hidden_size: 512
+rnn_embedding_size: 128
+
+#trans model
+n_layers: 6
+n_embed: 256
+n_heads: 16
+
+saved_name: final_1.pt
+
+#logging
+wandb_log: False
+wandb_entity: raj19
+wandb_dir:
+wandb_run_name: ${agent_name}_${seed}
+train_log_interval: 4
+env_log_interval: 100
+
+#saving
+save_snapshot: False
+output_dir: local_exp
+
+hydra:
+  run:
+    dir: ${output_dir}/${agent_name}/${now:%Y.%m.%d}/${now:%H.%M.%S}_${seed}
+  job:
+    chdir: False

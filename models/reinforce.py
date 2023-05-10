@@ -57,7 +57,7 @@ class TransPolicy(nn.Module):
         logits = self.linear(x)[-1]
         return td.Categorical(logits=logits)
 
-    def sample(self, batch_size, device, max_length):
+    def sample(self, batch_size, max_length, device):
         assert max_length <= self.max_len
         preds = self.vocab.bos * torch.ones((1, batch_size), dtype=torch.long, device=device)
         finished = torch.zeros((batch_size), dtype=torch.bool, device=device)
@@ -257,10 +257,11 @@ class FcPolicy(nn.Module):
         logits = self.fc3(x)
         return td.Categorical(logits=logits)
     
-    def sample(self, batch_size, device, max_length):
+    def sample(self, batch_size, max_length, device):
         assert max_length <= self.max_len
 
         imag_smiles = self.vocab.pad * torch.ones((self.max_len + 1, batch_size), dtype=torch.long, device=device)
+        imag_smiles_lens = torch.ones((1, batch_size),  device=device)
         imag_smiles[0] = self.vocab.bos
         finished = torch.zeros((1, batch_size), dtype=torch.bool, device=device)
         with torch.no_grad():
@@ -268,12 +269,14 @@ class FcPolicy(nn.Module):
                 preds_dist = self.forward_last(imag_smiles[:-1].T)
                 preds = preds_dist.sample()
                 imag_smiles[i] = preds
+                imag_smiles_lens += ~finished
+
                 EOS_sampled = (preds == self.vocab.eos)
                 finished = torch.ge(finished + EOS_sampled, 1)
                 if torch.prod(finished) == 1: break
     
         imag_smiles = imag_smiles.T.tolist()
-        return imag_smiles
+        return imag_smiles, imag_smiles_lens[0].tolist()
 
     def get_likelihood(self, obs, nonterms):      
         dist = self.forward(obs[:-1].T)
