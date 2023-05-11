@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --account=rrg-bengioy-ad
-#SBATCH --time=00:35:00
+#SBATCH --time=00:40:00
 #SBATCH --mem=4G
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus-per-node=1
@@ -30,4 +30,4 @@ rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --excl
 
 cd $SLURM_TMPDIR/RL4Chem
 
-python train_reinforce_fc_agent.py target=${t} seed=${s} rep=selfies wandb_log=True wandb_run_name='reinforce_char_fc_selfies_'${s}
+python train_prior_agent.py target=${t} seed=${s} dataset=zinc10m wandb_log=True wandb_run_name='prior_zinc10m_char_trans_smiles_'${s}
