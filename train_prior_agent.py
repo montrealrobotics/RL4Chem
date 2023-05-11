@@ -34,15 +34,7 @@ class prior_optimizer(BaseOptimizer):
         self.agent_name = cfg.agent_name
 
     def _init(self, cfg):
-        if cfg.dataset == 'zinc250k':
-            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
-            vocab_path = 'data/zinc250k/zinc_' + cfg.rep + '_vocab.txt'
-            max_dataset_len = 73
-            if cfg.max_len > max_dataset_len:
-                cfg.max_len = max_dataset_len
-                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
-        
-        elif cfg.dataset == 'chembl':
+        if cfg.dataset == 'chembl':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
             vocab_path = 'data/chembl/chembl_' + cfg.rep + '_vocab.txt'
             if cfg.rep=='smiles': 
@@ -53,10 +45,29 @@ class prior_optimizer(BaseOptimizer):
                 cfg.max_len = max_dataset_len
                 print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
         
+        elif cfg.dataset == 'zinc250k':
+            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
+            vocab_path = 'data/zinc250k/zinc_' + cfg.rep + '_vocab.txt'
+            max_dataset_len = 73
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
+        
+        elif cfg.dataset == 'zinc1m':
+            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
+            vocab_path = 'data/zinc1m/zinc_' + cfg.rep + '_vocab.txt'
+            max_dataset_len = 74
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
+        
         elif cfg.dataset == 'zinc10m':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
             vocab_path = 'data/zinc10m/zinc_' + cfg.rep + '_vocab.txt'
-            max_dataset_len = 85
+            if cfg.rep=='smiles': 
+                max_dataset_len = 85
+            elif cfg.rep=='selfies':
+                max_dataset_len = 88
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
                 print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
@@ -139,9 +150,9 @@ class prior_optimizer(BaseOptimizer):
                 metrics['mean_score'] = np.mean(score)
                 metrics['max_score'] = np.max(score)
                 metrics['min_score'] = np.min(score)
-                metrics['mean_episode_lens'] = np.mean(episode_lens.tolist())
-                metrics['max_episode_lens'] = np.max(episode_lens.tolist())
-                metrics['min_episode_lens'] = np.min(episode_lens.tolist())
+                metrics['mean_episode_lens'] = np.mean(episode_lens)
+                metrics['max_episode_lens'] = np.max(episode_lens)
+                metrics['min_episode_lens'] = np.min(episode_lens)
                 wandb.log(metrics)
 
         print('max training string hit')
