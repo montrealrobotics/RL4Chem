@@ -32,7 +32,7 @@ cd $SLURM_TMPDIR/RL4Chem
 
 wandb offline
 
-python train_prior_agent.py target=${t} seed=${s} dataset=chembl wandb_log=True wandb_dir='.' wandb_run_name='prior_chembl_char_trans_smiles_'${s}
+python train_reinforce_trans_agent.py target=${t} seed=${s} rep=selfies dataset=zinc1m wandb_log=True wandb_dir='.' wandb_run_name='reinforce_zinc1m_char_trans_selfies_'${s}
 
 a="local_exp"
 mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
