@@ -72,6 +72,17 @@ class reinforce_optimizer(BaseOptimizer):
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
                 print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
+        
+        elif cfg.dataset == 'zinc100m':
+            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
+            vocab_path = 'data/zinc100m/zinc_' + cfg.rep + '_vocab.txt'
+            if cfg.rep=='smiles': 
+                max_dataset_len = 85
+            elif cfg.rep=='selfies':
+                max_dataset_len = 88
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
         else:
             raise NotImplementedError
         
