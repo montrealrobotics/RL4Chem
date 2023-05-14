@@ -103,6 +103,43 @@ class BaseOptimizer:
             self.target = DockingVina(docking_config)
             self.predict = self.predict_docking
 
+        elif cfg.task == 'augmented_docking':
+            from docking import DockingVina
+            docking_config = dict()
+            if self.target_name == 'fa7':
+                box_center = (10.131, 41.879, 32.097)
+                box_size = (20.673, 20.198, 21.362)
+            elif self.target_name == 'parp1':
+                box_center = (26.413, 11.282, 27.238)
+                box_size = (18.521, 17.479, 19.995)
+            elif self.target_name == '5ht1b':
+                box_center = (-26.602, 5.277, 17.898)
+                box_size = (22.5, 22.5, 22.5)
+            elif self.target_name == 'jak2':
+                box_center = (114.758,65.496,11.345)
+                box_size= (19.033,17.929,20.283)
+            elif self.target_name == 'braf':
+                box_center = (84.194,6.949,-7.081)
+                box_size = (22.032,19.211,14.106)
+            else:
+                raise NotImplementedError
+            
+            docking_config['receptor_file'] = 'ReLeaSE_Vina/docking/' + self.target_name + '/receptor.pdbqt'
+            box_parameter = (box_center, box_size)
+            docking_config['box_parameter'] = box_parameter
+            docking_config['vina_program'] = cfg.vina_program
+            docking_config['temp_dir'] = cfg.temp_dir
+            docking_config['exhaustiveness'] = cfg.exhaustiveness
+            docking_config['num_sub_proc'] = cfg.num_sub_proc
+            docking_config['num_cpu_dock'] = cfg.num_cpu_dock
+            docking_config['num_modes'] = cfg.num_modes
+            docking_config['timeout_gen3d'] = cfg.timeout_gen3d
+            docking_config['timeout_dock'] = cfg.timeout_dock
+
+            self.target = DockingVina(docking_config)
+            self.qed_scorer = Oracle(name = 'qed')
+            self.predict = self.predict_augmented_docking
+
         elif cfg.task == 'pmo':
             self.target = Oracle(name = self.target_name)
             self.predict = self.predict_pmo
@@ -163,6 +200,42 @@ class BaseOptimizer:
         self.mean_score = np.mean(score_list)
         return score_list
 
+    def predict_augmented_docking(self, smiles_list):
+        """
+        Score
+        """
+        assert type(smiles_list) == list
+        self.total_count += len(smiles_list)
+        score_list = [None] * len(smiles_list)
+        new_smiles = []
+        new_smiles_ptrs = []
+        for i, smi in enumerate(smiles_list):
+            if smi in self.mol_buffer:
+                score_list[i] = (self.mol_buffer[smi][0] / 20) * ( (10 - self.mol_buffer[smi][3])/ 9) * self.mol_buffer[smi][4]
+                self.mol_buffer[smi][2] += 1
+                self.redundant_count += 1
+            else:
+                new_smiles.append((smi))
+                new_smiles_ptrs.append((i))
+
+        new_smiles_scores = self.target(new_smiles)    
+
+        for smi, ptr, sc in zip(new_smiles, new_smiles_ptrs, new_smiles_scores):
+            if sc == 99.0:
+                self.invalid_count += 1
+                sc = 0
+            
+            self.mol_buffer[smi] = [-sc, len(self.mol_buffer) + 1, 1, self.sa_scorer(smi), self.qed_scorer(smi)]          
+            score_list[ptr] = ( self.mol_buffer[smi][0] / 20 ) * ( (10 - self.mol_buffer[smi][3]) / 9 ) * self.mol_buffer[smi][4]
+
+            if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
+                self.sort_buffer()
+                self.log_intermediate()
+                self.last_log_time = time.time()
+                self.last_log = len(self.mol_buffer)
+        self.mean_score = np.mean(score_list)
+        return score_list
+    
     def predict_docking(self, smiles_list):
         """
         Score
