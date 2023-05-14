@@ -25,4 +25,4 @@ rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --excl
 
 cd $SLURM_TMPDIR/RL4Chem
 
-python train_reinforce_rnn_agent.py target=${t} seed=${s} kl_coef=0.001 wandb_log=True wandb_run_name='kltune_0.001_reinforce_char_trans_smiles_'${s}
+python train_reinvent_rnn_agent.py target=${t} seed=${s} kl_coef=0.001 wandb_log=True wandb_run_name='kltune_0.001_reinforce_char_trans_smiles_'${s}
