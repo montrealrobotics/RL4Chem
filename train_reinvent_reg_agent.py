@@ -95,7 +95,7 @@ class reinvent_optimizer(BaseOptimizer):
             metrics['agent_likelihood'] = logprobs.sum(0).mean().item()
             metrics['grad_norm'] = grad_norm.item() 
             metrics['smiles_len'] = episode_lens.float().mean().item()
-            metrics['loss_p'] = loss_p.item()
+            metrics['loss_p'] = 0 if cfg.reg == None else loss_p.item()
             print('logging!')
             wandb.log(metrics)
 
