@@ -33,6 +33,10 @@ learning_rate: 0.0005
 batch_size: 64
 max_len: 100
 
+#experience
+e_size: 100
+e_batch_size: 24
+
 #loss
 lp_coef: 5
 penalty:

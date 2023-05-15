@@ -32,14 +32,19 @@ def masked_mean(values, mask, axis=None):
 class Experience(object):
     """Class for prioritized experience replay that remembers the highest scored sequences
        seen and samples from them with probabilities relative to their scores."""
-    def __init__(self, voc, max_size):
+    def __init__(self, vocab, max_size):
         self.memory = []
         self.max_size = max_size
-        self.voc = voc
+        self.vocab = vocab
 
-    def add_experience(self, experience):
-        """Experience should be a list of (smiles, score, episode lens) tuples"""
+    def add_experience(self, smiles, obs, scores, nonterms, episode_lens):
+        obs = obs.T
+        nonterms = nonterms.T
+        episode_lens = episode_lens
+
+        experience = zip(smiles, obs, scores, nonterms, episode_lens)
         self.memory.extend(experience)
+
         if len(self.memory)>self.max_size:
             # Remove duplicates
             idxs, smiles = [], []
@@ -50,23 +55,29 @@ class Experience(object):
             self.memory = [self.memory[idx] for idx in idxs]
 
             # Retain highest scores
-            self.memory.sort(key = lambda x: x[1], reverse=True)
+            self.memory.sort(key = lambda x: x[2], reverse=True)
             self.memory = self.memory[:self.max_size]
-            print("\nBest score in memory: {:.2f}".format(self.memory[0][1]))
-
-    def sample(self, n):
+        
+    def sample(self, n, device):
         """Sample a batch size n of experience"""
         if len(self.memory)<n:
             raise IndexError('Size of memory ({}) is less than requested sample ({})'.format(len(self), n))
         else:
-            scores = [x[1]+1e-10 for x in self.memory]
+            scores = [x[2]+1e-10 for x in self.memory]
             sample = np.random.choice(len(self), size=n, replace=False, p=scores/np.sum(scores))
             sample = [self.memory[i] for i in sample]
-            obs = [x[0] for x in sample]
-            scores = [x[1] for x in sample]
-            lens = [x[2] for x in sample]
-            
-        return np.array(obs), np.array(scores), np.array(lens)
+
+            obs = [x[1] for x in sample]
+            scores = [x[2] for x in sample]
+            nonterms = [x[3] for x in sample]
+            lens = [x[4] for x in sample]
+
+        obs = torch.nn.utils.rnn.pad_sequence(obs, padding_value=self.vocab.pad)[:max(lens)+1]
+        nonterms = torch.nn.utils.rnn.pad_sequence(nonterms, padding_value=0)[:max(lens)+1]  
+        scores = torch.tensor(scores, dtype=torch.float32, device=device).unsqueeze(0)
+        lens = torch.stack(lens)   
+ 
+        return obs, scores, nonterms, lens
 
     def __len__(self):
         return len(self.memory)
@@ -96,7 +107,7 @@ class reinvent_optimizer(BaseOptimizer):
             raise NotImplementedError
        
         #get memory
-        self.experience = Experience(self.vocab, 100)
+        self.experience = Experience(self.vocab, cfg.e_batch_size)
 
         assert cfg.model_name == 'char_rnn'
         #get pretrained weights
@@ -109,14 +120,13 @@ class reinvent_optimizer(BaseOptimizer):
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params(self.agent), lr=cfg['learning_rate'])
 
-    def update(self, obs, rewards, nonterms, episode_lens, cfg, metrics, log): 
-        rev_returns = torch.cumsum(rewards, dim=0) 
-        advantages = rewards - rev_returns + rev_returns[-1:]
-
+    def update(self, obs, scores, nonterms, episode_lens, cfg, metrics, log): 
+        
         logprobs = self.agent.get_likelihood(obs, episode_lens, nonterms)
 
-        loss_pg = -advantages * logprobs
+        loss_pg = -scores * logprobs
         loss_pg = loss_pg.sum(0, keepdim=True).mean()
+
         loss_p = - (1 / logprobs.sum(0, keepdim=True)).mean()
         loss = loss_pg + cfg.lp_coef * loss_p 
 
@@ -151,12 +161,8 @@ class reinvent_optimizer(BaseOptimizer):
 
             with torch.no_grad():
                 # sample experience
-                obs, rewards, nonterms, episode_lens = self.agent.get_data(cfg.batch_size, cfg.max_len, self.device)
-                print(obs)
-                print(episode_lens)
-                print()
-                # self.experience.add_experience((obs, ))
-
+                obs, nonterms, episode_lens = self.agent.get_data(cfg.batch_size, cfg.max_len, self.device)
+               
             if cfg.rep == 'selfies':            
                 smiles_list = []
                 for en_sms in obs.cpu().numpy().T:
@@ -173,6 +179,8 @@ class reinvent_optimizer(BaseOptimizer):
 
                 score = np.array(self.predict(smiles_list))
                 scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
+
+            self.experience.add_experience(smiles_list, obs, score, nonterms, episode_lens)
 
             if self.finish:
                 print('max oracle hit')
@@ -195,8 +203,29 @@ class reinvent_optimizer(BaseOptimizer):
                 metrics['min_episode_lens'] = np.min(episode_lens.tolist())
                 wandb.log(metrics)
 
-            rewards = rewards * scores
-            self.update(obs, rewards, nonterms, episode_lens, cfg, metrics, log)
+
+            if len(self.experience) > cfg.batch_size:
+                e_obs, e_scores, e_nonterms, e_episode_lens = self.experience.sample(cfg.e_batch_size, self.device)
+                e_L, e_B = e_obs.shape
+                L, B = obs.shape
+
+                f_L = max(e_L, L)
+
+                f_obs = torch.zeros((f_L, cfg.batch_size + cfg.e_batch_size), dtype=torch.long, device=self.device)
+                f_nonterms = torch.zeros((f_L, cfg.batch_size + cfg.e_batch_size), dtype=torch.bool, device=self.device)
+
+                f_obs[:L, :B] = obs
+                f_obs[:e_L, B:] = e_obs
+
+                f_nonterms[:L, :B] = nonterms
+                f_nonterms[:e_L, B:] = e_nonterms
+
+                f_scores = torch.cat([scores, e_scores], dim=-1)
+                f_episode_lens = torch.cat([episode_lens, e_episode_lens])
+               
+                self.update(f_obs, f_scores, f_nonterms, f_episode_lens, cfg, metrics, log)
+            else:
+                self.update(obs, scores, nonterms, episode_lens, cfg, metrics, log)
         
         print('max training string hit')
         wandb.finish()

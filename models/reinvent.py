@@ -56,7 +56,6 @@ class RnnPolicy(nn.Module):
         obs = torch.zeros((max_length + 1, batch_size), dtype=torch.long, device=device)
         obs[0] = self.vocab.bos
         nonterms = torch.zeros((max_length + 1, batch_size), dtype=torch.bool, device=device)
-        rewards = torch.zeros((max_length, batch_size), dtype=torch.float32, device=device)
         end_flags = torch.zeros((1, batch_size), dtype=torch.bool, device=device)
 
         input_lens = torch.ones(batch_size)
@@ -69,24 +68,16 @@ class RnnPolicy(nn.Module):
             nonterms[i-1] = ~end_flags
             
             EOS_sampled = (preds == self.vocab.eos)
-            rewards[i-1] = EOS_sampled * (~end_flags)
 
             #check if all sequences are done
             end_flags = torch.ge(end_flags + EOS_sampled, 1)
             if torch.prod(end_flags) == 1: break
 
-        if i == max_length:
-            rewards[-1] = rewards[-1] + (~end_flags)
-
-        #remove assertion afterwards
-        assert rewards.sum() == batch_size
-
         obs = obs[:i+1]
         nonterms = nonterms[:i+1]
-        rewards = rewards[:i]
         episode_lens = nonterms.sum(0).cpu()
 
-        return obs, rewards, nonterms, episode_lens
+        return obs, nonterms, episode_lens
 
     def get_data_with_prior(self, prior, batch_size, max_length, device):
         obs = torch.zeros((max_length + 1, batch_size), dtype=torch.long, device=device)
