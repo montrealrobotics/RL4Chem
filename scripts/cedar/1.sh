@@ -30,4 +30,4 @@ rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --excl
 
 cd $SLURM_TMPDIR/RL4Chem
 
-python train_reinvent_reg_agent.py target=${t} seed=${s} reg=ent ent_coef=0.001 wandb_log=True reg=ent wandb_run_name='entreg1e-3_reinvent_char_trans_smiles_'${s}
+python train_prior_agent.py target=${t} seed=${s} dataset=zinc100m wandb_log=True reg=ent wandb_run_name='prior_zinc100m_char_trans_smiles_'${s}
