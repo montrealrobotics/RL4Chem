@@ -30,4 +30,4 @@ rsync -a $HOME/projects/def-gberseth/$USER/RL4Chem/ $SLURM_TMPDIR/RL4Chem --excl
 
 cd $SLURM_TMPDIR/RL4Chem
 
-python train_reinvent_replay_agent.py target=${t} seed=${s} wandb_log=True wandb_run_name='nohc_replay_reinvent_char_trans_smiles_'${s}
+python train_reinvent_reg_agent.py target=${t} seed=${s} wandb_log=True wandb_run_name='noreg_reinvent_char_trans_smiles_'${s}

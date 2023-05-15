@@ -55,7 +55,7 @@ class Experience(object):
             self.memory = [self.memory[idx] for idx in idxs]
 
             # Retain highest scores
-            # self.memory.sort(key = lambda x: x[2], reverse=True)
+            self.memory.sort(key = lambda x: x[2], reverse=True)
             self.memory = self.memory[:self.max_size]
         
     def sample(self, n, device):
@@ -107,7 +107,7 @@ class reinvent_optimizer(BaseOptimizer):
             raise NotImplementedError
        
         #get memory
-        self.experience = Experience(self.vocab, cfg.e_batch_size)
+        self.experience = Experience(self.vocab, cfg.e_size)
 
         assert cfg.model_name == 'char_rnn'
         #get pretrained weights
@@ -200,7 +200,6 @@ class reinvent_optimizer(BaseOptimizer):
                 metrics['max_episode_lens'] = np.max(episode_lens.tolist())
                 metrics['min_episode_lens'] = np.min(episode_lens.tolist())
                 wandb.log(metrics)
-
 
             if len(self.experience) > cfg.batch_size:
                 e_obs, e_scores, e_nonterms, e_episode_lens = self.experience.sample(cfg.e_batch_size, self.device)
