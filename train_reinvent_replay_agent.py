@@ -55,7 +55,7 @@ class Experience(object):
             self.memory = [self.memory[idx] for idx in idxs]
 
             # Retain highest scores
-            self.memory.sort(key = lambda x: x[2], reverse=True)
+            # self.memory.sort(key = lambda x: x[2], reverse=True)
             self.memory = self.memory[:self.max_size]
         
     def sample(self, n, device):
