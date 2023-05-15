@@ -22,5 +22,6 @@ oracle/
 results.py
 results/
 docking_results.py
+pytdc_results/
 docking_results/
 final_results/
