@@ -180,8 +180,6 @@ class reinvent_optimizer(BaseOptimizer):
                 score = np.array(self.predict(smiles_list))
                 scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
 
-            self.experience.add_experience(smiles_list, obs, score, nonterms, episode_lens)
-
             if self.finish:
                 print('max oracle hit')
                 wandb.finish()
@@ -226,6 +224,8 @@ class reinvent_optimizer(BaseOptimizer):
                 self.update(f_obs, f_scores, f_nonterms, f_episode_lens, cfg, metrics, log)
             else:
                 self.update(obs, scores, nonterms, episode_lens, cfg, metrics, log)
+
+            self.experience.add_experience(smiles_list, obs, score, nonterms, episode_lens)
         
         print('max training string hit')
         wandb.finish()
