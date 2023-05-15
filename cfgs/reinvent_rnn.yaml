@@ -6,12 +6,10 @@ task: pmo
 target: qed
 
 #reinvent specific
-prior_reg: True
 kl_coef: 0.001
-replay_buffer: False
-hill_climb: False
-logp_reg: True
-entropy_reg: False
+reg: 
+inv_p_coef: 5
+ent_coef:
 
 #docking specific
 vina_program: 'qvina2'

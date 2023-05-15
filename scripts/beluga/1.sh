@@ -32,7 +32,7 @@ cd $SLURM_TMPDIR/RL4Chem
 
 wandb offline
 
-python train_reinvent_replay_agent.py target=${t} seed=${s} wandb_log=True wandb_dir='.' wandb_run_name='nohc_replay_reinvent_char_trans_smiles_'${s}
+python train_reinvent_reg_agent.py target=${t} seed=${s} wandb_log=True wandb_dir='.' wandb_run_name='no_reg_reinvent_char_trans_smiles_'${s}
 
 a="local_exp"
 mkdir -p $HOME/projects/def-gberseth/$USER/RL4Chem/$a
