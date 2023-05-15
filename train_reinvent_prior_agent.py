@@ -62,13 +62,10 @@ class reinvent_optimizer(BaseOptimizer):
         self.agent.load_save_dict(prior_saved_dict)
 
         # get prior
-        if cfg.prior_reg:
-            self.prior = RnnPolicy(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
-            self.prior.load_save_dict(prior_saved_dict)
-            for param in self.prior.parameters():
-                param.requires_grad = False
-        else:
-            raise NotImplementedError
+        self.prior = RnnPolicy(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
+        self.prior.load_save_dict(prior_saved_dict)
+        for param in self.prior.parameters():
+            param.requires_grad = False
         
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params(self.agent), lr=cfg['learning_rate'])
