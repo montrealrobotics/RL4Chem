@@ -12,7 +12,6 @@ output_dir:
 #learning
 seed: 1
 device: cuda
-oracle: zaleplon_mpo
 prior_path: Prior.ckpt
 max_oracle_calls: 25000
 learning_rate: 0.0005
