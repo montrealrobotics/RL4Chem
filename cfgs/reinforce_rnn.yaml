@@ -1,7 +1,7 @@
 agent_name: reinforce
 model_name: char_rnn
 dataset: zinc250k
-rep: smiles
+rep: selfies
 task: pmo
 target: qed
 
@@ -27,7 +27,7 @@ max_len: 100
 
 #loss
 lp_coef: 5
-penalty:
+penalty: diff
 
 #rnn model
 num_layers: 3

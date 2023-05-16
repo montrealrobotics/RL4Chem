@@ -121,7 +121,6 @@ class reinforce_optimizer(BaseOptimizer):
                         except:
                             true_selfies_len_list.append(episode_lens[i])
                         smiles_list.append(sms)
-
                     # difference penalty
                     score = np.array(self.predict(smiles_list)) - np.abs(episode_lens.numpy() - true_selfies_len_list) / cfg.max_len
                     scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
