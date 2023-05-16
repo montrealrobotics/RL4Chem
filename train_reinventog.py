@@ -480,7 +480,7 @@ def main(cfg: DictConfig):
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
     
     if cfg.wandb_log:
-        project_name = 'pmo_' + cfg.oracle
+        project_name = 'pmo_' + cfg.target
         wandb_run = wandb.init(project=project_name, entity=cfg.wandb_entity, config=dict(cfg))
         wandb.run.name = cfg.wandb_run_name
     
