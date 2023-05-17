@@ -14,6 +14,7 @@ seed: 1
 device: cuda
 prior_path: Prior.ckpt
 max_oracle_calls: 25000
+max_strings: 40000
 learning_rate: 0.0005
 batch_size: 64
 experience_replay: 24

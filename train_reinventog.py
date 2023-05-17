@@ -409,8 +409,8 @@ class reinventog_optimizer(BaseOptimizer):
         print("Model initialized, starting training...")
 
         step = 0
-
-        while True:
+        eval_strings = 0
+        while eval_strings < cfg.max_strings:
            
             # Sample from Agent
             seqs, agent_likelihood, entropy = Agent.sample(cfg.batch_size)
@@ -464,8 +464,10 @@ class reinventog_optimizer(BaseOptimizer):
             augmented_likelihood = augmented_likelihood.detach().cpu().numpy()
             agent_likelihood = agent_likelihood.detach().cpu().numpy()
 
+            eval_strings += cfg.batch_size
             if cfg.wandb_log and step % cfg.train_log_interval == 0:
                 metrics = dict()
+                metrics['eval_strings'] = eval_strings
                 metrics['augmented_likelihood'] = augmented_likelihood.mean()
                 metrics['agent_likelihood'] = agent_likelihood.mean()
                 metrics['loss'] = loss.item()
