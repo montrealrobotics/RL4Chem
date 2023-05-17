@@ -1,5 +1,5 @@
 agent_name: reinvent
-model_name: char_rnn
+model_name: char_trans
 dataset: zinc250k
 rep: smiles
 task: pmo
@@ -39,11 +39,19 @@ e_batch_size: 24
 lp_coef: 5
 penalty:
 
-#rnn model
-num_layers: 3
-hidden_size: 512
-embedding_size: 128
+# #rnn model
+# num_layers: 3
+# hidden_size: 512
+# embedding_size: 128
+# saved_name: final_1.pt
+
+
+#trans model
+n_layers: 6
+n_embed: 256
+n_heads: 16
 saved_name: final_1.pt
+dropout: 0.0
 
 #logging
 wandb_log: False
