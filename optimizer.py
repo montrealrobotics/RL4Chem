@@ -211,7 +211,7 @@ class BaseOptimizer:
         new_smiles_ptrs = []
         for i, smi in enumerate(smiles_list):
             if smi in self.mol_buffer:
-                score_list[i] = (self.mol_buffer[smi][0] / 20) * ( (10 - self.mol_buffer[smi][3])/ 9) * self.mol_buffer[smi][4]
+                score_list[i] = self.mol_buffer[smi][0]
                 self.mol_buffer[smi][2] += 1
                 self.redundant_count += 1
             else:
@@ -224,9 +224,8 @@ class BaseOptimizer:
             if sc == 99.0:
                 self.invalid_count += 1
                 sc = 0
-            
-            self.mol_buffer[smi] = [-sc, len(self.mol_buffer) + 1, 1, self.sa_scorer(smi), self.qed_scorer(smi)]          
-            score_list[ptr] = ( self.mol_buffer[smi][0] / 20 ) * ( (10 - self.mol_buffer[smi][3]) / 9 ) * self.mol_buffer[smi][4]
+            self.mol_buffer[smi] = [( -sc / 20 ) * ( (10 - self.sa_scorer(smi)) / 9 ) * self.qed_scorer(smi), len(self.mol_buffer)+1, 1]
+            score_list[ptr] = self.mol_buffer[smi][0]
 
             if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
                 self.sort_buffer()
@@ -260,9 +259,8 @@ class BaseOptimizer:
             if sc == 99.0:
                 self.invalid_count += 1
                 sc = 0
-            else:
-                self.mol_buffer[smi] = [-sc, len(self.mol_buffer)+1, 1]        
-
+                
+            self.mol_buffer[smi] = [-sc, len(self.mol_buffer)+1, 1]        
             score_list[ptr] = -sc / 20      
 
             if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
