@@ -11,7 +11,6 @@ from optimizer import BaseOptimizer
 path_here = os.path.dirname(os.path.realpath(__file__))
 
 from models.reinvent import RnnPolicy
-from models.reinforce import TransPolicy
 from data import smiles_vocabulary, selfies_vocabulary
 
 def set_seed(seed):
@@ -96,18 +95,6 @@ class reinvent_optimizer(BaseOptimizer):
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
                 print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
-        
-        elif cfg.dataset == 'chembl':
-            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
-            vocab_path = 'data/chembl/chembl_' + cfg.rep + '_vocab.txt'
-            if cfg.rep=='smiles': 
-                max_dataset_len = 112
-            elif cfg.rep=='selfies':
-                max_dataset_len = 106
-            if cfg.max_len > max_dataset_len:
-                cfg.max_len = max_dataset_len
-                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
-        
         else:
             raise NotImplementedError
         
@@ -122,30 +109,20 @@ class reinvent_optimizer(BaseOptimizer):
         #get memory
         self.experience = Experience(self.vocab, cfg.e_size)
 
-        assert cfg.model_name == 'char_trans'
-        #get prior
+        assert cfg.model_name == 'char_rnn'
+        #get pretrained weights
         prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
-        print('Prior loaded')
 
         # get agent
-        self.agent = TransPolicy(self.vocab, max_dataset_len, cfg.n_heads, cfg.n_embed, cfg.n_layers, dropout=cfg.dropout)
-        
-        print('Agent class initialised')
-
-        self.agent.to(self.device)
-
-        print('Agent class transferred to cuda memory')
-
+        self.agent = RnnPolicy(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
         self.agent.load_save_dict(prior_saved_dict)
-
-        print('Prior weights initialised')
 
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params(self.agent), lr=cfg['learning_rate'])
 
     def update(self, obs, scores, nonterms, episode_lens, cfg, metrics, log): 
         
-        logprobs = self.agent.get_likelihood(obs, nonterms)
+        logprobs = self.agent.get_likelihood(obs, episode_lens, nonterms)
 
         loss_pg = -scores * logprobs
         loss_pg = loss_pg.sum(0, keepdim=True).mean()
@@ -184,8 +161,8 @@ class reinvent_optimizer(BaseOptimizer):
 
             with torch.no_grad():
                 # sample experience
-                obs, _, nonterms, episode_lens = self.agent.get_data(cfg.batch_size, cfg.max_len, self.device)
-
+                obs, nonterms, episode_lens = self.agent.get_data(cfg.batch_size, cfg.max_len, self.device)
+               
             if cfg.rep == 'selfies':            
                 smiles_list = []
                 for en_sms in obs.cpu().numpy().T:
