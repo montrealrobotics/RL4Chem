@@ -224,7 +224,7 @@ class BaseOptimizer:
             if sc == 99.0:
                 self.invalid_count += 1
                 sc = 0
-            self.mol_buffer[smi] = [( -sc / 20 ) * ( (10 - self.sa_scorer(smi)) / 9 ) * self.qed_scorer(smi), len(self.mol_buffer)+1, 1]
+            self.mol_buffer[smi] = [( -sc / 20 ) * ( (10 - self.sa_scorer(smi)) / 9 ) * self.qed_scorer(smi), len(self.mol_buffer)+1, 1, -sc]
             score_list[ptr] = self.mol_buffer[smi][0]
 
             if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
@@ -296,6 +296,8 @@ class BaseOptimizer:
             temp_top100 = list(self.mol_buffer.items())[:100]
             smis = [item[0] for item in temp_top100]
             scores = [item[1][0] for item in temp_top100]
+            if self.cfg.task == 'augmented_docking':
+                docking_scores = [item[1][3] for item in temp_top100]
             n_calls = self.max_oracle_calls
         
         else:
@@ -305,12 +307,16 @@ class BaseOptimizer:
                     temp_top100 = list(self.mol_buffer.items())[:100]
                     smis = [item[0] for item in temp_top100]
                     scores = [item[1][0] for item in temp_top100]
+                    if self.cfg.task == 'augmented_docking':
+                        docking_scores = [item[1][3] for item in temp_top100]
                     n_calls = len(self.mol_buffer)
                 else:
                     results = list(sorted(self.mol_buffer.items(), key=lambda kv: kv[1][1], reverse=False))[:self.max_oracle_calls]
                     temp_top100 = sorted(results, key=lambda kv: kv[1][0], reverse=True)[:100]
                     smis = [item[0] for item in temp_top100]
                     scores = [item[1][0] for item in temp_top100]
+                    if self.cfg.task == 'augmented_docking':
+                        docking_scores = [item[1][3] for item in temp_top100]
                     n_calls = self.max_oracle_calls
             else:
                 # Otherwise, log the input moleucles
@@ -320,6 +326,11 @@ class BaseOptimizer:
         avg_top1 = np.max(scores)
         avg_top10 = np.mean(sorted(scores, reverse=True)[:10])
         avg_top100 = np.mean(scores)
+
+        avg_docking_top1 = np.max(docking_scores)
+        avg_docking_top10 = np.mean(sorted(docking_scores, reverse=True)[:10])
+        avg_docking_top100 = np.mean(docking_scores)
+
         avg_sa = np.mean(self.sa_scorer(smis))
         diversity_top100 = self.diversity_evaluator(smis)
 
@@ -339,7 +350,10 @@ class BaseOptimizer:
             wandb.log({
                 "avg_top1": avg_top1, 
                 "avg_top10": avg_top10, 
-                "avg_top100": avg_top100, 
+                "avg_top100": avg_top100,
+                "avg_docking_top1": avg_docking_top1, 
+                "avg_docking_top10": avg_docking_top10, 
+                "avg_docking_top100": avg_docking_top100, 
                 "auc_top1": top_auc(self.mol_buffer, 1, finish, self.env_log_interval, self.max_oracle_calls),
                 "auc_top10": top_auc(self.mol_buffer, 10, finish, self.env_log_interval, self.max_oracle_calls),
                 "auc_top100": top_auc(self.mol_buffer, 100, finish, self.env_log_interval, self.max_oracle_calls),
