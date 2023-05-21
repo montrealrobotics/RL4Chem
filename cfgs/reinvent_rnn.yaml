@@ -43,7 +43,6 @@ penalty:
 num_layers: 3
 hidden_size: 512
 embedding_size: 128
-saved_name: final_1.pt
 
 #trans model
 n_layers: 6
