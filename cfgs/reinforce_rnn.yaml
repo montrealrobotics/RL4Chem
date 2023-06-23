@@ -1,7 +1,7 @@
 agent_name: reinforce
 model_name: char_rnn
 dataset: zinc250k
-rep: selfies
+rep: smiles
 task: pmo
 target: qed
 
@@ -18,8 +18,8 @@ timeout_dock: 100
 #learning
 seed: 1
 device: cuda
-max_oracle_calls: 25000
-max_strings: 40000
+max_oracle_calls: 250000
+max_strings: 400000
 
 learning_rate: 0.0005
 batch_size: 64
