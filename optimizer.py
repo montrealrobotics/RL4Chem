@@ -327,9 +327,10 @@ class BaseOptimizer:
         avg_top10 = np.mean(sorted(scores, reverse=True)[:10])
         avg_top100 = np.mean(scores)
 
-        avg_docking_top1 = np.max(docking_scores)
-        avg_docking_top10 = np.mean(sorted(docking_scores, reverse=True)[:10])
-        avg_docking_top100 = np.mean(docking_scores)
+        if self.cfg.task == 'augmented_docking':
+            avg_docking_top1 = np.max(docking_scores)
+            avg_docking_top10 = np.mean(sorted(docking_scores, reverse=True)[:10])
+            avg_docking_top100 = np.mean(docking_scores)
 
         avg_sa = np.mean(self.sa_scorer(smis))
         diversity_top100 = self.diversity_evaluator(smis)
@@ -351,9 +352,9 @@ class BaseOptimizer:
                 "avg_top1": avg_top1, 
                 "avg_top10": avg_top10, 
                 "avg_top100": avg_top100,
-                "avg_docking_top1": avg_docking_top1, 
-                "avg_docking_top10": avg_docking_top10, 
-                "avg_docking_top100": avg_docking_top100, 
+                # "avg_docking_top1": avg_docking_top1, 
+                # "avg_docking_top10": avg_docking_top10, 
+                # "avg_docking_top100": avg_docking_top100, 
                 "auc_top1": top_auc(self.mol_buffer, 1, finish, self.env_log_interval, self.max_oracle_calls),
                 "auc_top10": top_auc(self.mol_buffer, 10, finish, self.env_log_interval, self.max_oracle_calls),
                 "auc_top100": top_auc(self.mol_buffer, 100, finish, self.env_log_interval, self.max_oracle_calls),
