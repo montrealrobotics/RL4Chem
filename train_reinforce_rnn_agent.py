@@ -59,7 +59,7 @@ class reinforce_optimizer(BaseOptimizer):
 
         # get agent
         self.agent = RnnPolicy(self.vocab, cfg.embedding_size, cfg.hidden_size, cfg.num_layers).to(self.device)
-        self.agent.load_save_dict(prior_saved_dict)
+        # self.agent.load_save_dict(prior_saved_dict)
 
         # get optimizers
         self.optimizer = torch.optim.Adam(get_params(self.agent), lr=cfg['learning_rate'])

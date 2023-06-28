@@ -110,7 +110,7 @@ class reinforce_optimizer(BaseOptimizer):
 
         print('Agent class transferred to cuda memory')
 
-        self.agent.load_save_dict(prior_saved_dict)
+        # self.agent.load_save_dict(prior_saved_dict)
 
         print('Prior weights initialised')
 
