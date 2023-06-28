@@ -97,9 +97,9 @@ class reinforce_optimizer(BaseOptimizer):
         print('Vocab assigned')
 
         assert cfg.model_name == 'char_trans'
-        #get prior
-        prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
-        print('Prior loaded')
+        # #get prior
+        # prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
+        # print('Prior loaded')
 
         # get agent
         self.agent = TransPolicy(self.vocab, max_dataset_len, cfg.n_heads, cfg.n_embed, cfg.n_layers, dropout=cfg.dropout)
