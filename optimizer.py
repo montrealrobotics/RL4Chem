@@ -6,6 +6,7 @@ import wandb
 import numpy as np
 from tdc import Oracle
 from rdkit import Chem
+from rdkit.Chem import Draw
 
 def top_auc(buffer, top_n, finish, env_log_interval, max_oracle_calls):
     sum = 0
@@ -309,6 +310,8 @@ class BaseOptimizer:
                     scores = [item[1][0] for item in temp_top100]
                     if self.cfg.task == 'augmented_docking':
                         docking_scores = [item[1][3] for item in temp_top100]
+                    else:
+                        docking_scores = [0] * len(scores)
                     n_calls = len(self.mol_buffer)
                 else:
                     results = list(sorted(self.mol_buffer.items(), key=lambda kv: kv[1][1], reverse=False))[:self.max_oracle_calls]
@@ -317,31 +320,31 @@ class BaseOptimizer:
                     scores = [item[1][0] for item in temp_top100]
                     if self.cfg.task == 'augmented_docking':
                         docking_scores = [item[1][3] for item in temp_top100]
+                    else:
+                        docking_scores = [0] * len(scores)
                     n_calls = self.max_oracle_calls
             else:
                 # Otherwise, log the input moleucles
                 smis = [Chem.MolToSmiles(m) for m in mols]
                 n_calls = len(self.mol_buffer)
-        
+       
         avg_top1 = np.max(scores)
         avg_top10 = np.mean(sorted(scores, reverse=True)[:10])
         avg_top100 = np.mean(scores)
 
-        if self.cfg.task == 'augmented_docking':
-            avg_docking_top1 = np.max(docking_scores)
-            avg_docking_top10 = np.mean(sorted(docking_scores, reverse=True)[:10])
-            avg_docking_top100 = np.mean(docking_scores)
+        avg_docking_top1 = np.max(docking_scores)
+        avg_docking_top10 = np.mean(sorted(docking_scores, reverse=True)[:10])
+        avg_docking_top100 = np.mean(docking_scores)
 
         avg_sa = np.mean(self.sa_scorer(smis))
         diversity_top100 = self.diversity_evaluator(smis)
 
         print(f'{n_calls}/{self.max_oracle_calls} | '
-                # f'avg_top1: {avg_top1:.3f} | '
+                f'avg_top1: {avg_top1:.3f} | '
                 # f'avg_top10: {avg_top10:.3f} | '
                 # f'avg_top100: {avg_top100:.3f} | '
                 f'time: {time.time() - self.last_log_time:.3f} | '
                 f'mean_score: {self.mean_score:.3f} | '
-                # f'avg_sa: {avg_sa:.3f} | '
                 f'tot_cnt: {self.total_count} | '
                 f'inv_count: {self.invalid_count} | '
                 f'red_cnt: {self.redundant_count} | '
@@ -352,9 +355,9 @@ class BaseOptimizer:
                 "avg_top1": avg_top1, 
                 "avg_top10": avg_top10, 
                 "avg_top100": avg_top100,
-                # "avg_docking_top1": avg_docking_top1, 
-                # "avg_docking_top10": avg_docking_top10, 
-                # "avg_docking_top100": avg_docking_top100, 
+                "avg_docking_top1": avg_docking_top1, 
+                "avg_docking_top10": avg_docking_top10, 
+                "avg_docking_top100": avg_docking_top100, 
                 "auc_top1": top_auc(self.mol_buffer, 1, finish, self.env_log_interval, self.max_oracle_calls),
                 "auc_top10": top_auc(self.mol_buffer, 10, finish, self.env_log_interval, self.max_oracle_calls),
                 "auc_top100": top_auc(self.mol_buffer, 100, finish, self.env_log_interval, self.max_oracle_calls),
@@ -364,6 +367,12 @@ class BaseOptimizer:
                 "redundant_count": self.redundant_count,
                 "num_molecules": n_calls,
             })
+
+           
+            data = [[scores[i], docking_scores[i], smis[i]] for i in range(10)]
+
+            columns = ["Score", "Docking score", "SMILES"]
+            wandb.log({"Top 10 Molecules": wandb.Table(data=data, columns=columns)})
     
     def _analyze_results(self, results):
         results = results[:100]
