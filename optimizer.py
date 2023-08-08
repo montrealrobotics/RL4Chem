@@ -188,6 +188,7 @@ class BaseOptimizer:
             return self.mol_buffer[smi][0]
         
     def predict_pmo(self, smiles_list):
+        st = time.time()
         assert type(smiles_list) == list
         self.total_count += len(smiles_list)
         score_list = []
@@ -198,6 +199,8 @@ class BaseOptimizer:
                 self.log_intermediate()
                 self.last_log_time = time.time()
                 self.last_log = len(self.mol_buffer)
+        
+        self.last_logging_time = time.time() - st
         self.mean_score = np.mean(score_list)
         return score_list
 
@@ -205,6 +208,7 @@ class BaseOptimizer:
         """
         Score
         """
+        st = time.time()
         assert type(smiles_list) == list
         self.total_count += len(smiles_list)
         score_list = [None] * len(smiles_list)
@@ -233,6 +237,8 @@ class BaseOptimizer:
                 self.log_intermediate()
                 self.last_log_time = time.time()
                 self.last_log = len(self.mol_buffer)
+        
+        self.last_logging_time = time.time() - st
         self.mean_score = np.mean(score_list)
         return score_list
     
@@ -240,6 +246,7 @@ class BaseOptimizer:
         """
         Score
         """
+        st = time.time()
         assert type(smiles_list) == list
         self.total_count += len(smiles_list)
         score_list = [None] * len(smiles_list)
@@ -267,8 +274,11 @@ class BaseOptimizer:
             if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
                 self.sort_buffer()
                 self.log_intermediate()
+                
                 self.last_log_time = time.time()
                 self.last_log = len(self.mol_buffer)
+        
+        self.last_logging_time = time.time() - st
         self.mean_score = np.mean(score_list)
         return score_list
 
@@ -344,6 +354,7 @@ class BaseOptimizer:
                 # f'avg_top10: {avg_top10:.3f} | '
                 # f'avg_top100: {avg_top100:.3f} | '
                 f'time: {time.time() - self.last_log_time:.3f} | '
+                f'logging time : {self.last_logging_time} | '
                 f'mean_score: {self.mean_score:.3f} | '
                 f'tot_cnt: {self.total_count} | '
                 f'inv_count: {self.invalid_count} | '
