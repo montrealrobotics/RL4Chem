@@ -380,9 +380,9 @@ class BaseOptimizer:
             })
 
            
-            data = [[scores[i], docking_scores[i], smis[i]] for i in range(10)]
+            data = [[scores[i], docking_scores[i], smis[i], wandb.Image(Draw.MolToImage(Chem.MolFromSmiles(smis[i])))] for i in range(10)]
 
-            columns = ["Score", "Docking score", "SMILES"]
+            columns = ["Score", "Docking score", "SMILES", "IMAGE"]
             wandb.log({"Top 10 Molecules": wandb.Table(data=data, columns=columns)})
     
     def _analyze_results(self, results):
