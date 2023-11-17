@@ -8,6 +8,7 @@ env_*
 #local experiments
 local_exp/
 wandb/
+artifacts/
 
 #docking
 tmp/
