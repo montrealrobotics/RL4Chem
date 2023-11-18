@@ -5,6 +5,7 @@ import hydra
 import torch
 import random
 import numpy as np
+import torch.optim as optim
 from omegaconf import DictConfig
 from optimizer import BaseOptimizer
 path_here = os.path.dirname(os.path.realpath(__file__))
@@ -96,6 +97,11 @@ class reinforce_optimizer(BaseOptimizer):
     
         print('Vocab assigned')
 
+        self.target_entropy = - 0.98 * torch.log(1 / torch.tensor(len(self.vocab)))
+        self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
+        self.alpha = self.log_alpha.exp().item()
+        self.a_optimizer = optim.Adam([self.log_alpha], lr=3e-4, eps=1e-4)
+
         assert cfg.model_name == 'char_trans'
         #get prior
         prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
@@ -123,12 +129,21 @@ class reinforce_optimizer(BaseOptimizer):
         rev_returns = torch.cumsum(rewards, dim=0) 
         advantages = rewards - rev_returns + rev_returns[-1:]
 
-        logprobs = self.agent.get_likelihood(obs, nonterms)
+        logprobs, log_of_probs, action_probs = self.agent.get_likelihood(obs, nonterms)
+
+        # print(logprobs)
+        # print(act_probs)
+        # print(logprobs.shape)
+        # print(act_probs.shape)
+        # exit()
 
         loss_pg = -advantages * logprobs
         loss_pg = loss_pg.sum(0, keepdim=True).mean()
-        loss_p = - (1 / logprobs.sum(0, keepdim=True)).mean()
-        loss = loss_pg + cfg.lp_coef * loss_p 
+        
+        
+        #loss_p = - (1 / logprobs.sum(0, keepdim=True)).mean()
+        loss = loss_pg #+ cfg.lp_coef * loss_p 
+        loss = loss_pg + self.alpha * logprobs.sum(0, keepdim=True).mean()
 
         # Calculate gradients and make an update to the network weights
         self.optimizer.zero_grad()
@@ -136,12 +151,21 @@ class reinforce_optimizer(BaseOptimizer):
         grad_norm = torch.nn.utils.clip_grad_norm_(self.agent.parameters(), 0.5)
         self.optimizer.step()
 
+        alpha_loss = (action_probs.detach() * (-self.log_alpha.exp() * (log_of_probs + self.target_entropy).detach())).mean()
+        
+        self.a_optimizer.zero_grad()
+        alpha_loss.backward()
+        self.a_optimizer.step()
+        self.alpha = self.log_alpha.exp().item()
+
         if log:
             metrics['pg_loss'] = loss_pg.item()       
             metrics['agent_likelihood'] = logprobs.sum(0).mean().item()
             metrics['grad_norm'] = grad_norm.item() 
             metrics['smiles_len'] = episode_lens.float().mean().item()
-            metrics['loss_p'] = loss_p.item()
+            # metrics['loss_p'] = loss_p.item()
+            metrics['alpha'] = self.alpha
+            metrics['alpha_loss'] = alpha_loss.detach().item()
             print('logging!')
             wandb.log(metrics)
 

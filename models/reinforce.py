@@ -80,7 +80,19 @@ class TransPolicy(nn.Module):
     def get_likelihood(self, obs, nonterms):      
         dist = self.forward(obs[:-1])
         logprobs = dist.log_prob(obs[1:]) * nonterms[:-1]
-        return logprobs
+        # print(logprobs.shape)
+        # print(dist.logits.shape)
+        # print(dist.probs.shape)
+        # exit()
+        log_of_probs = F.log_softmax(dist.logits, dim=-1) * nonterms[:-1].unsqueeze(-1)
+        action_probs = dist.probs * nonterms[:-1].unsqueeze(-1)
+
+        # print(log_of_probs)
+        # print(action_probs)
+        # print(torch.log(action_probs))
+        # exit()
+
+        return logprobs, log_of_probs, action_probs
 
     def get_data(self, batch_size, max_length, device):
         if max_length is None:
