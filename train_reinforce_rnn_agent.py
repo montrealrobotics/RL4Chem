@@ -111,37 +111,13 @@ class reinforce_optimizer(BaseOptimizer):
 
             if cfg.rep == 'selfies':
                 smiles_list = []
-            
-                if cfg.penalty == 'diff':
-                    true_selfies_len_list = []
-                    for i, en_sms in enumerate(obs.cpu().numpy().T):
-                        sms = self.vocab.decode_padded(en_sms)
-                        try:
-                            true_selfies_len_list.append(sf.len_selfies(sf.encoder(sms)))
-                        except:
-                            true_selfies_len_list.append(episode_lens[i])
-                        smiles_list.append(sms)
-                    # difference penalty
-                    score = np.array(self.predict(smiles_list)) - np.abs(episode_lens.numpy() - true_selfies_len_list) / cfg.max_len
-                    scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
-                elif cfg.penalty == 'len':
-                    smiles_list = []
-                    for en_sms in obs.cpu().numpy().T:
-                        sms = self.vocab.decode_padded(en_sms)
-                        smiles_list.append(sms)
+                for en_sms in obs.cpu().numpy().T:
+                    sms = self.vocab.decode_padded(en_sms)
+                    smiles_list.append(sms)
 
-                    # length penalty
-                    score = np.array(self.predict(smiles_list)) - episode_lens.numpy() / cfg.max_len
-                    scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0) 
-                else:
-                    smiles_list = []
-                    for en_sms in obs.cpu().numpy().T:
-                        sms = self.vocab.decode_padded(en_sms)
-                        smiles_list.append(sms)
-
-                    # no penalty
-                    score = np.array(self.predict(smiles_list))
-                    scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
+                # no penalty
+                score = np.array(self.predict(smiles_list))
+                scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
             else:
                 smiles_list = []
                 for en_sms in obs.cpu().numpy().T:
