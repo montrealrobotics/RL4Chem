@@ -35,8 +35,38 @@ class reinforce_optimizer(BaseOptimizer):
         self.agent_name = cfg.agent_name
 
     def _init(self, cfg):
-        
-        if cfg.dataset == 'chembl':
+        if cfg.dataset == 'molgen_oled_1':
+            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + 'chembl0.25_zinc0.25_moses0.25_oled0.25.pt'
+            vocab_path = 'data/molgen_oled_1/molgen_' + cfg.rep + '_vocab.txt'
+            if cfg.rep=='smiles': 
+                max_dataset_len = 366 # 112
+            elif cfg.rep=='selfies':
+                max_dataset_len = 106
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
+        elif cfg.dataset == 'molgen_oled_2':
+            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + 'chembl0.2_zinc0.2_moses0.2_oled0.4.pt'
+            vocab_path = 'data/molgen_oled_2/molgen_' + cfg.rep + '_vocab.txt'
+            if cfg.rep=='smiles': 
+                max_dataset_len = 366 # 112
+            elif cfg.rep=='selfies':
+                max_dataset_len = 106
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
+        elif cfg.dataset == 'molgen':
+            saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + 'chembl0.1_zinc0.3_moses0.6.pt'
+            vocab_path = 'data/molgen/molgen_' + cfg.rep + '_vocab.txt'
+            if cfg.rep=='smiles': 
+                max_dataset_len = 112
+            elif cfg.rep=='selfies':
+                max_dataset_len = 106
+            if cfg.max_len > max_dataset_len:
+                cfg.max_len = max_dataset_len
+                print('*** Changing the maximum length of sampled molecules because it was set to be greater than the maximum length seen during training ***')
+            
+        elif cfg.dataset == 'chembl':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
             vocab_path = 'data/chembl/chembl_' + cfg.rep + '_vocab.txt'
             if cfg.rep=='smiles': 
@@ -57,7 +87,7 @@ class reinforce_optimizer(BaseOptimizer):
         
         elif cfg.dataset == 'zinc1m':
             saved_path = 'saved/' + cfg.dataset + '/' + cfg.model_name + '_' + cfg.rep + '/' + cfg.saved_name
-            vocab_path = 'data/zinc1m/zinc_' + cfg.rep + '_vocab.txt'
+            vocab_path = 'data/zinc1m/zinc_' + cfg.rep + '_vocab_1M.txt'
             max_dataset_len = 74
             if cfg.max_len > max_dataset_len:
                 cfg.max_len = max_dataset_len
@@ -101,9 +131,12 @@ class reinforce_optimizer(BaseOptimizer):
         self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
         self.alpha = self.log_alpha.exp().item()
         self.a_optimizer = optim.Adam([self.log_alpha], lr=3e-4, eps=1e-4)
+        self.highest_scored_mols = []
 
         assert cfg.model_name == 'char_trans'
         #get prior
+        print('Saved path: ', saved_path)
+        print('Path here: ', path_here)
         prior_saved_dict = torch.load(os.path.join(path_here, saved_path))
         print('Prior loaded')
 
@@ -192,8 +225,8 @@ class reinforce_optimizer(BaseOptimizer):
             for en_sms in obs.cpu().numpy().T:
                 sms = self.vocab.decode_padded(en_sms)
                 smiles_list.append(sms)
-                
-            score = np.array(self.predict(smiles_list))
+            #smiles_list = ['COc1ccc(N2CCC3CC2c2cc(-c4ccc(Cl)c(C#N)c4)ccc23)cc1', 'N#CCn1cnc2c(-c3ccc(F)cc3)csc2c1=O', 'OC1CN(Cc2ccncc2)CC(O)C1N1CCOCC1', 'C=C(C)CN(CC)S(=O)(=O)c1c(C)cc(C)cc1C', 'c1ccc2[nH]c(CN3CCN(Cc4ccon4)CC3)nc2c1', 'CC1(C)CCCC(C)(C)N1c1cc(-c2nccc3nccnc23)c(-c2cncc3nccnc23)cc1-n1c2ccccc2c2ccccc21', 'COC(=O)C(CC(C)C)NC(=O)c1ccc(OC)nc1', 'COc1nc2ccc(Br)cc2cc1C(c1ccc(C)cc1)n1ccnc1', 'C=CCN(C(=O)c1ccc2nnnn2c1)c1nc(-c2ccco2)cs1', 'CCn1nc(C)c(CNc2ccc(F)cc2C(=O)N2CCOCC2)c1C']
+            score, logp_scores = np.array(self.predict(smiles_list))
             scores = torch.tensor(score, dtype=torch.float32, device=self.device).unsqueeze(0)
 
             if self.finish:
@@ -212,17 +245,40 @@ class reinforce_optimizer(BaseOptimizer):
                 metrics['mean_score'] = np.mean(score)
                 metrics['max_score'] = np.max(score)
                 metrics['min_score'] = np.min(score)
+                metrics['mean_logp_score'] = np.mean(logp_scores)
+                metrics['max_logp_score'] = np.max(logp_scores)
+                metrics['min_logp_score'] = np.min(logp_scores)
                 metrics['mean_episode_lens'] = np.mean(episode_lens.tolist())
                 metrics['max_episode_lens'] = np.max(episode_lens.tolist())
                 metrics['min_episode_lens'] = np.min(episode_lens.tolist())
                 wandb.log(metrics)
+                self.update_highest_scored_molecules(logp_scores, smiles_list)
 
             rewards = rewards * scores
             self.update(obs, rewards, nonterms, episode_lens, cfg, metrics, log)
 
         print('max training string hit')
+        print('Highest scored mols:', self.highest_scored_mols)
         wandb.finish()
         sys.exit(0)
+
+    def update_highest_scored_molecules(self, scores, molecules):
+        for idx, new_score in enumerate(scores):
+            mol = molecules[idx]
+            existing_mol = next((m for m in self.highest_scored_mols if m['mol'] == mol), None)
+
+            if existing_mol:
+                if new_score > existing_mol['score']:
+                    existing_mol['score'] = new_score
+            else:
+                if len(self.highest_scored_mols) < 5:
+                    self.highest_scored_mols.append({'mol': mol, 'score': new_score})
+                else:
+                    lowest_score = min(self.highest_scored_mols, key=lambda x: x['score'])
+
+                    if new_score > lowest_score['score']:
+                        self.highest_scored_mols.remove(lowest_score)
+                        self.highest_scored_mols.append({'mol': mol, 'score': new_score})
 
 @hydra.main(config_path='cfgs', config_name='reinforce_trans', version_base=None)
 def main(cfg: DictConfig):
@@ -245,6 +301,7 @@ def main(cfg: DictConfig):
     sys.exit(0)
     
 if __name__ == '__main__':
+    wandb.init(project="llms-materials-rl")
     main()
     sys.exit(0)
     exit()

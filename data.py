@@ -109,7 +109,7 @@ class smiles_vocabulary(object):
         for char in chars:
             self.alphabet.add(char)
         
-        self.special_tokens = ['EOS', 'BOS', 'PAD', 'UNK']
+        self.special_tokens = ['EOS', 'BOS', 'PAD', 'UNK', 'B', '[B-]'] # 
 
         self.alphabet_list = list(self.alphabet)
         self.alphabet_list.sort()

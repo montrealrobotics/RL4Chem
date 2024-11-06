@@ -143,6 +143,9 @@ class BaseOptimizer:
 
         elif cfg.task == 'pmo':
             self.target = Oracle(name = self.target_name)
+            # TODO: Add them!
+            self.logP_score = Oracle(name = 'LogP')
+            # self.qed_scorer = Oracle(name = 'qed')
             self.predict = self.predict_pmo
         else:
             raise NotImplementedError
@@ -161,6 +164,20 @@ class BaseOptimizer:
         wandb.define_metric("n_oracle", step_metric="num_molecules")
         wandb.define_metric("invalid_count", step_metric="num_molecules")
         wandb.define_metric("redundant_count", step_metric="num_molecules")
+    
+    def score_logp(self, smi):
+        """
+        Function to score one molecule wrt logp
+        Argguments:
+            smi: One SMILES string represnets a moelcule.
+        Return:
+            score: a float represents the logp of the molecule.
+        """
+        try:
+            logp_score = float(self.logP_score(smi))
+        except ZeroDivisionError:
+            return 0 # TODO something else! 
+        return logp_score
 
     def score_pmo(self, smi):
         """
@@ -184,6 +201,12 @@ class BaseOptimizer:
                 self.mol_buffer[smi][2] += 1
                 self.redundant_count += 1
             else:
+                # Weighted average of targets:
+                # weights = [0.5, 0.5]
+                # qed = float(self.target(smi))
+                # logp = float(self.logP_score(smi))
+                # wavg_score = float(qed * weights[0] + logp * weights[1])
+                
                 self.mol_buffer[smi] = [float(self.target(smi)), len(self.mol_buffer)+1, 1]
             return self.mol_buffer[smi][0]
         
@@ -192,8 +215,10 @@ class BaseOptimizer:
         assert type(smiles_list) == list
         self.total_count += len(smiles_list)
         score_list = []
+        logp_score_list = []
         for smi in smiles_list:
             score_list.append(self.score_pmo(smi))
+            logp_score_list.append(self.score_logp(smi))
             if len(self.mol_buffer) % self.env_log_interval == 0 and len(self.mol_buffer) > self.last_log:
                 self.sort_buffer()
                 self.log_intermediate()
@@ -202,7 +227,7 @@ class BaseOptimizer:
         
         self.last_logging_time = time.time() - st
         self.mean_score = np.mean(score_list)
-        return score_list
+        return score_list, logp_score_list
 
     def predict_augmented_docking(self, smiles_list):
         """

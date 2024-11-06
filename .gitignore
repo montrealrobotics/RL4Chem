@@ -26,3 +26,12 @@ docking_results.py
 pytdc_results/
 docking_results/
 final_results/
+
+#job outputs
+slurm-*
+
+# openbabel
+openbabel/
+
+#vscode
+.vscode/
